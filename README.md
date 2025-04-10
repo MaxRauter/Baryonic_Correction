@@ -8,8 +8,8 @@ With always increasing compute power, cosmological simulations have gotten more 
 
 ## Table of Contents
 - [Usage](#usage)
-- [Features](#features)
-- [Dependencies](#dependencies)
+- [Requirements](#requirements)
+- [User Stories](#user-stories)
 - [Examples](#examples)
 - [License](#license)
 - [Authors](#authors)
@@ -41,20 +41,6 @@ bc.save_results(corrected_data, "path/to/output")
     - Matplotlib
     - Astropy
     - h5py (for HDF5 file support)
-## User Stories
-- Accurate baryonic feedback modeling
-- Support for multiple cosmological simulation formats
-- Customizable correction parameters
-- Visualization tools for before/after comparison
-- Performance optimization for large datasets
-
-## Dependencies
-- Python 3.8+
-- NumPy
-- SciPy
-- Matplotlib
-- Astropy
-- h5py (for HDF5 file support)
 
 ## User stories
 - Max is working with Camels Simulations and wants to add a mass threshold to halo masses because small halos have very little impact but take reasonable amount of computational time.
