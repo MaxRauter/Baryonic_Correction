@@ -1,4 +1,4 @@
-# Baryonic_Correction
+# Baryonic_Correction_model
 
 ## Description
 A Python package for applying baryonic corrections to cosmological simulations following Schneider & Teyssier 2015. This tool helps account for the effects of baryonic physics on dark matter distributions, improving the accuracy of cosmological models without the need of expensive hydrodynamic simulations.
