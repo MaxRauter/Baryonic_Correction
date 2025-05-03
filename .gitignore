@@ -14,7 +14,7 @@ __pycache__/
 *.fits
 
 # Ignore test data
-#BCM/tests/Data/
+BCM/tests/Data/
 
 # Ignore OS files
 .DS_Store
