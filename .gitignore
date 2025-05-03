@@ -6,7 +6,7 @@ __pycache__/
 .ipynb_checkpoints/
 
 # Ignore large data files and outputs
-*.hdf5
+#*.hdf5
 *.h5
 *.npz
 *.npy
@@ -14,7 +14,7 @@ __pycache__/
 *.fits
 
 # Ignore test data
-BCM/tests/Data/
+#BCM/tests/Data/
 
 # Ignore OS files
 .DS_Store
