@@ -112,13 +112,6 @@ def y_bgas(r, r_s, r200, y0, c, rho0, r_tr):
     inner_scaled = inner_val * scale_factor
     
     return np.where(r <= r_transition, inner_scaled, outer_val)
-    
-    # Piecewise profile
-    if np.isscalar(r):
-        return inner_val if r <= r_transition else outer_val_scaled
-    else:
-        result = np.where(r <= r_transition, inner_val, outer_val_scaled)
-        return result
 
 def y_egas(r, M_tot, r_ej):
     """
@@ -165,7 +158,7 @@ def y_rdm_ac(r, r_s, rho0, r_tr, norm = 1.0,
         # Solve rf/ri - 1 = a*(M_i(ri)/M_f(rf) - 1) for ri in (ε, rf)
         def G(ri):
             try:
-                import Package.BCM.utils as ut
+                import Baryonic_Correction.BCM.utils as ut
             except ImportError:
                 import BCM.utils as ut
     

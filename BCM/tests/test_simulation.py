@@ -2,10 +2,11 @@ import pytest
 import numpy as np
 import os
 import h5py
+import hdf5plugin
 import matplotlib.pyplot as plt
 from unittest.mock import patch, MagicMock, mock_open
 try:
-    from Package.BCM import simulations as sim
+    from Baryonic_Correction.BCM import simulations as sim
 except ImportError:
     from BCM import simulations as sim
 
@@ -71,12 +72,12 @@ def test_init_basic():
 
 def test_init_with_paths():
     """Test initialization with paths."""
-    reader = sim.CAMELSReader(path_group="Package/BCM/tests/Data/groups_014_dm.hdf5", 
-                            path_snapshot="Package/BCM/tests/Data/snapshot_014_dm.hdf5",
+    reader = sim.CAMELSReader(path_group="Baryonic_Correction/BCM/tests/Data/groups_014_dm.hdf5", 
+                            path_snapshot="Baryonic_Correction/BCM/tests/Data/snapshot_014_dm.hdf5",
                             index=5, 
                             verbose=True)
-    assert reader.path_group == "Package/BCM/tests/Data/groups_014_dm.hdf5"
-    assert reader.path_snapshot == "Package/BCM/tests/Data/snapshot_014_dm.hdf5"
+    assert reader.path_group == "Baryonic_Correction/BCM/tests/Data/groups_014_dm.hdf5"
+    assert reader.path_snapshot == "Baryonic_Correction/BCM/tests/Data/snapshot_014_dm.hdf5"
     assert reader.index == 5
     assert reader.verbose is True
 
@@ -84,8 +85,8 @@ def test_init_with_paths():
 def test_load_halodata_basic(mock_hdf5_file):
     """Test basic halo data loading functionality."""
 
-    reader = sim.CAMELSReader(path_group="Package/BCM/tests/Data/groups_014_dm.hdf5", 
-                            path_snapshot="Package/BCM/tests/Data/snapshot_014_dm.hdf5",
+    reader = sim.CAMELSReader(path_group="Baryonic_Correction/BCM/tests/Data/groups_014_dm.hdf5", 
+                            path_snapshot="Baryonic_Correction/BCM/tests/Data/snapshot_014_dm.hdf5",
                             index=5, 
                             verbose=True)
     
@@ -98,8 +99,8 @@ def test_load_halodata_basic(mock_hdf5_file):
 
 def test_load_halodata_file_not_exists():
     """Test behavior when file doesn't exist."""
-    reader = sim.CAMELSReader(path_group="Package/BCM/tests/Data/groups_015_dm.hdf5", 
-                            path_snapshot="Package/BCM/tests/Data/snapshot_015_dm.hdf5",
+    reader = sim.CAMELSReader(path_group="Baryonic_Correction/BCM/tests/Data/groups_015_dm.hdf5", 
+                            path_snapshot="Baryonic_Correction/BCM/tests/Data/snapshot_015_dm.hdf5",
                             index=5, 
                             verbose=True)
     assert not hasattr(reader, 'halo')
@@ -108,8 +109,8 @@ def test_load_halodata_file_not_exists():
 def test_load_particles_basic():
     """Test basic loading of particle data."""
     reader = sim.CAMELSReader(
-        path_group="Package/BCM/tests/Data/groups_014_dm.hdf5",
-        path_snapshot="Package/BCM/tests/Data/snapshot_014_dm.hdf5",
+        path_group="Baryonic_Correction/BCM/tests/Data/groups_014_dm.hdf5",
+        path_snapshot="Baryonic_Correction/BCM/tests/Data/snapshot_014_dm.hdf5",
         index=1  # Use second halo
     )
     reader._load_particles()
@@ -128,8 +129,8 @@ def test_load_particles_basic():
 def test_load_particles_explicit_index():
     """Test loading particle data for multiple halos."""
     reader = sim.CAMELSReader(
-        path_group="Package/BCM/tests/Data/groups_014_dm.hdf5",
-        path_snapshot="Package/BCM/tests/Data/snapshot_014_dm.hdf5"
+        path_group="Baryonic_Correction/BCM/tests/Data/groups_014_dm.hdf5",
+        path_snapshot="Baryonic_Correction/BCM/tests/Data/snapshot_014_dm.hdf5"
     )
     # Set to load all halos
     reader.index = 1
@@ -144,8 +145,8 @@ def test_load_particles_explicit_index():
 def test_get_halo_particles_basic():
     """Test retrieving particles for a specific halo."""
     reader = sim.CAMELSReader(
-        path_group="Package/BCM/tests/Data/groups_014_dm.hdf5",
-        path_snapshot="Package/BCM/tests/Data/snapshot_014_dm.hdf5"
+        path_group="Baryonic_Correction/BCM/tests/Data/groups_014_dm.hdf5",
+        path_snapshot="Baryonic_Correction/BCM/tests/Data/snapshot_014_dm.hdf5"
     )
     
     # Get particles for halo index 1
@@ -164,8 +165,8 @@ def test_get_halo_particles_basic():
 def test_get_halo_particles_invalid_index():
     """Test behavior when an invalid halo index is provided."""
     reader = sim.CAMELSReader(
-        path_group="Package/BCM/tests/Data/groups_014_dm.hdf5",
-        path_snapshot="Package/BCM/tests/Data/snapshot_014_dm.hdf5"
+        path_group="Baryonic_Correction/BCM/tests/Data/groups_014_dm.hdf5",
+        path_snapshot="Baryonic_Correction/BCM/tests/Data/snapshot_014_dm.hdf5"
     )
     
     # Attempt to get particles for an invalid halo index
@@ -176,8 +177,8 @@ def test_get_halo_particles_invalid_index():
 def test_get_halo_center_basic():
     """Test retrieving the center of a specific halo."""
     reader = sim.CAMELSReader(
-        path_group="Package/BCM/tests/Data/groups_014_dm.hdf5",
-        path_snapshot="Package/BCM/tests/Data/snapshot_014_dm.hdf5"
+        path_group="Baryonic_Correction/BCM/tests/Data/groups_014_dm.hdf5",
+        path_snapshot="Baryonic_Correction/BCM/tests/Data/snapshot_014_dm.hdf5"
     )
     
     # Get center for halo index 0
@@ -191,8 +192,8 @@ def test_get_halo_center_basic():
 def test_get_halo_center_default_index():
     """Test retrieving center using default instance index."""
     reader = sim.CAMELSReader(
-        path_group="Package/BCM/tests/Data/groups_014_dm.hdf5",
-        path_snapshot="Package/BCM/tests/Data/snapshot_014_dm.hdf5",
+        path_group="Baryonic_Correction/BCM/tests/Data/groups_014_dm.hdf5",
+        path_snapshot="Baryonic_Correction/BCM/tests/Data/snapshot_014_dm.hdf5",
         index=2
     )
     
@@ -207,8 +208,8 @@ def test_get_halo_center_default_index():
 def test_get_particles_relative_position_basic():
     """Test retrieving particle positions relative to halo center."""
     reader = sim.CAMELSReader(
-        path_group="Package/BCM/tests/Data/groups_014_dm.hdf5",
-        path_snapshot="Package/BCM/tests/Data/snapshot_014_dm.hdf5",
+        path_group="Baryonic_Correction/BCM/tests/Data/groups_014_dm.hdf5",
+        path_snapshot="Baryonic_Correction/BCM/tests/Data/snapshot_014_dm.hdf5",
         index=1  # Use second halo
     )
     
@@ -223,8 +224,8 @@ def test_get_particles_relative_position_basic():
 def test_get_particles_relative_position_specific_halo():
     """Test relative positions for specific halo."""
     reader = sim.CAMELSReader(
-        path_group="Package/BCM/tests/Data/groups_014_dm.hdf5",
-        path_snapshot="Package/BCM/tests/Data/snapshot_014_dm.hdf5"
+        path_group="Baryonic_Correction/BCM/tests/Data/groups_014_dm.hdf5",
+        path_snapshot="Baryonic_Correction/BCM/tests/Data/snapshot_014_dm.hdf5"
     )
     
     halo_index = 2
@@ -242,8 +243,8 @@ def test_get_particles_relative_position_specific_halo():
 def test_load_simdata_basic():
     """Test basic simulation data loading functionality."""
     reader = sim.CAMELSReader(
-        path_group="Package/BCM/tests/Data/groups_014_dm.hdf5",
-        path_snapshot="Package/BCM/tests/Data/snapshot_014_dm.hdf5"
+        path_group="Baryonic_Correction/BCM/tests/Data/groups_014_dm.hdf5",
+        path_snapshot="Baryonic_Correction/BCM/tests/Data/snapshot_014_dm.hdf5"
     )
     
     # Verify simulation properties were loaded
@@ -258,7 +259,7 @@ def test_load_simdata_basic():
 def test_load_simdata_file_not_exists():
     """Test behavior when snapshot file doesn't exist."""
     reader = sim.CAMELSReader(
-        path_group="Package/BCM/tests/Data/groups_014_dm.hdf5",
+        path_group="Baryonic_Correction/BCM/tests/Data/groups_014_dm.hdf5",
         path_snapshot="nonexistent_file.hdf5"
     )
     
@@ -270,8 +271,8 @@ def test_load_simdata_file_not_exists():
 def test_calc_offset_basic():
     """Test basic offset calculation."""
     reader = sim.CAMELSReader(
-        path_group="Package/BCM/tests/Data/groups_014_dm.hdf5",
-        path_snapshot="Package/BCM/tests/Data/snapshot_014_dm.hdf5"
+        path_group="Baryonic_Correction/BCM/tests/Data/groups_014_dm.hdf5",
+        path_snapshot="Baryonic_Correction/BCM/tests/Data/snapshot_014_dm.hdf5"
     )
     
     # Calculate offset for the second halo
@@ -284,8 +285,8 @@ def test_calc_offset_basic():
 def test_calc_offset_sequential():
     """Test offset calculation for sequential halos."""
     reader = sim.CAMELSReader(
-        path_group="Package/BCM/tests/Data/groups_014_dm.hdf5",
-        path_snapshot="Package/BCM/tests/Data/snapshot_014_dm.hdf5"
+        path_group="Baryonic_Correction/BCM/tests/Data/groups_014_dm.hdf5",
+        path_snapshot="Baryonic_Correction/BCM/tests/Data/snapshot_014_dm.hdf5"
     )
     
     # Offset for first halo should be 0
@@ -314,8 +315,8 @@ def test_plot_halo_masses_histogram_basic(monkeypatch):
     monkeypatch.setattr(plt, 'show', mock_plt.show)
     
     reader = sim.CAMELSReader(
-        path_group="Package/BCM/tests/Data/groups_014_dm.hdf5",
-        path_snapshot="Package/BCM/tests/Data/snapshot_014_dm.hdf5"
+        path_group="Baryonic_Correction/BCM/tests/Data/groups_014_dm.hdf5",
+        path_snapshot="Baryonic_Correction/BCM/tests/Data/snapshot_014_dm.hdf5"
     )
     
     # Call the plotting function
@@ -346,8 +347,8 @@ def test_plot_halo_masses_histogram_with_limit(monkeypatch):
     monkeypatch.setattr(plt, 'show', mock_plt.show)
     
     reader = sim.CAMELSReader(
-        path_group="Package/BCM/tests/Data/groups_014_dm.hdf5",
-        path_snapshot="Package/BCM/tests/Data/snapshot_014_dm.hdf5"
+        path_group="Baryonic_Correction/BCM/tests/Data/groups_014_dm.hdf5",
+        path_snapshot="Baryonic_Correction/BCM/tests/Data/snapshot_014_dm.hdf5"
     )
     
     # Call the plotting function with a mass limit
@@ -366,8 +367,8 @@ def test_plot_halo_masses_histogram_with_limit(monkeypatch):
 def test_init_calculations_basic():
     """Test basic initialization of calculations."""
     reader = sim.CAMELSReader(
-        path_group="Package/BCM/tests/Data/groups_014_dm.hdf5",
-        path_snapshot="Package/BCM/tests/Data/snapshot_014_dm.hdf5"
+        path_group="Baryonic_Correction/BCM/tests/Data/groups_014_dm.hdf5",
+        path_snapshot="Baryonic_Correction/BCM/tests/Data/snapshot_014_dm.hdf5"
     )
     
     # Initialize calculations with default parameters
@@ -382,8 +383,8 @@ def test_init_calculations_basic():
 def test_init_calculations_custom_params():
     """Test initialization of calculations with custom parameters."""
     reader = sim.CAMELSReader(
-        path_group="Package/BCM/tests/Data/groups_014_dm.hdf5",
-        path_snapshot="Package/BCM/tests/Data/snapshot_014_dm.hdf5"
+        path_group="Baryonic_Correction/BCM/tests/Data/groups_014_dm.hdf5",
+        path_snapshot="Baryonic_Correction/BCM/tests/Data/snapshot_014_dm.hdf5"
     )
     
     # Custom cosmological parameters
@@ -419,8 +420,8 @@ def test_init_calculations_custom_params():
 def test_calculate_profiles_basic():
     """Test basic profile calculation functionality."""
     reader = sim.CAMELSReader(
-        path_group="Package/BCM/tests/Data/groups_014_dm.hdf5",
-        path_snapshot="Package/BCM/tests/Data/snapshot_014_dm.hdf5"
+        path_group="Baryonic_Correction/BCM/tests/Data/groups_014_dm.hdf5",
+        path_snapshot="Baryonic_Correction/BCM/tests/Data/snapshot_014_dm.hdf5"
     )
     
     # Setup required parameters
@@ -437,8 +438,8 @@ def test_calculate_profiles_basic():
 def test_calculate_profiles_with_options():
     """Test profile calculation with specific options."""
     reader = sim.CAMELSReader(
-        path_group="Package/BCM/tests/Data/groups_014_dm.hdf5",
-        path_snapshot="Package/BCM/tests/Data/snapshot_014_dm.hdf5"
+        path_group="Baryonic_Correction/BCM/tests/Data/groups_014_dm.hdf5",
+        path_snapshot="Baryonic_Correction/BCM/tests/Data/snapshot_014_dm.hdf5"
     )
     
     # Setup required parameters

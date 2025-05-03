@@ -5,9 +5,9 @@ import glob
 import hdf5plugin
 import matplotlib.pyplot as plt
 try:
-    from Package.BCM import density_profiles as dp
-    from Package.BCM import utils as ut
-    from Package.BCM import abundance_fractions as af
+    from Baryonic_Correction.BCM import density_profiles as dp
+    from Baryonic_Correction.BCM import utils as ut
+    from Baryonic_Correction.BCM import abundance_fractions as af
 except ImportError:
     from BCM import density_profiles as dp
     from BCM import utils as ut
@@ -158,7 +158,11 @@ class CAMELSReader:
         self.particles = particles
     
     def get_halo_particles(self, index = None):
-        path = self.path_snapshot        
+        path = self.path_snapshot 
+        print(f"Trying to open snapshot file: {path}")  # Add this line
+        if not os.path.exists(path):
+            print(f"File does not exist: {path}")
+            return None       
         if index == None:
             start = 0
             stop = None
