@@ -38,7 +38,7 @@ class CAMELSReader:
             self._load_halodata()
         if path_snapshot:
             self._load_simdata()
-        #self._load_particles()
+        self._load_particles()
         
     def _load_halodata(self):
         """
@@ -526,6 +526,38 @@ class CAMELSReader:
         
         return rho_rdm, M_rdm
     
+    def print_components(self, r = None):
+        """
+        Print the components of the BCM.
+        """
+        if self.r_vals is None:
+            raise ValueError("Radius array not created. Call calculate() first.")
+        
+        if r is None:
+            r = self.r_vals[-1]
+        if r < self.r_vals[0] or r > self.r_vals[-1]:
+            raise ValueError(f"Radius {r} is out of bounds. Must be between {self.r_vals[0]} and {self.r_vals[-1]}.")
+        r_index = np.searchsorted(self.r_vals, r)
+        print(f"Components at r = {r:.3f} Mpc/h:")
+        print(f"  rho_dmo = {self.components['rho_dmo'][r_index]:.3e}")
+        print(f"  rho_bcm = {self.components['rho_bcm'][r_index]:.3e}")
+        print(f"  rho_bkg = {self.components['rho_bkg'][r_index]:.3e}")
+        print(f"  rho_rdm = {self.components['rdm'][r_index]:.3e}")
+        print(f"  rho_bgas = {self.components['bgas'][r_index]:.3e}")
+        print(f"  rho_egas = {self.components['egas'][r_index]:.3e}")
+        print(f"  rho_cgal = {self.components['cgal'][r_index]:.3e}")
+        print(f"  M200 = {self.M200:.3e}")
+        print(f"  r200 = {self.r200:.3f}")  
+        print(f"  r_s = {self.r_s:.3f}")
+        print(f"  rho0 = {self.rho0:.3e}")
+        print(f"  r_ej = {self.r_ej:.3f}")
+        print(f"  R_h = {self.R_h:.3f}")
+        print(f"  f_rdm = {self.f_rdm:.3f}")
+        print(f"  f_bgas = {self.f_bgas:.3f}")
+        print(f"  f_cgal = {self.f_cgal:.3f}")
+        print(f"  f_egas = {self.f_egas:.3f}")
+        print(f"  rho0 = {self.rho0:.3e}")
+    
     def calculate(self, r_min=0.0001, r_max=2000, n_points=1000):
         """
         Calculate all BCM profiles and properties.
@@ -583,10 +615,77 @@ class CAMELSReader:
         
         return self
     
+    def apply_displacement(self, particles=None):
+        """
+        Apply the displacement to the particles.
+        """
+        if particles is None:
+            particles = self.particles
+        if self.r_vals is None:
+            raise ValueError("Radius array not created. Call calculate() first.")
+
+        # Get the displacement for each particle
+        rel_pos = self.get_particles_relative_position()
+        r = np.linalg.norm(rel_pos, axis=1)
+        disp = np.interp(r, self.r_vals, self.components['disp'])
+
+        # Avoid division by zero for particles at the center
+        with np.errstate(invalid='ignore', divide='ignore'):
+            direction = np.zeros_like(rel_pos)
+            mask = r > 0
+            direction[mask] = rel_pos[mask] / r[mask, np.newaxis]
+
+        # Apply the displacement along the radial direction
+        new_rel_pos = rel_pos + direction * disp[:, np.newaxis]
+
+        # Optionally, shift back to absolute coordinates
+        center = self.get_halo_center()
+        new_pos = new_rel_pos + center
+
+        return new_pos
+    
+    def plot_density_profiles(self):
+        """
+        Plot the density profiles of the components.
+        """
+        if self.r_vals is None:
+            raise ValueError("Radius array not created. Call calculate() first.")
+        
+        plt.figure(figsize=(10, 6))
+        plt.plot(self.r_vals, self.components['rho_dmo'], label='DMO', color='blue')
+        plt.plot(self.r_vals, self.components['rho_bcm'], label='BCM', color='orange')
+        plt.plot(self.r_vals, self.components['bgas'], label='Baryonic Gas', color='green')
+        plt.plot(self.r_vals, self.components['egas'], label='Ejected Gas', color='red')
+        plt.plot(self.r_vals, self.components['cgal'], label='Central Galaxy', color='purple')
+        plt.plot(self.r_vals, self.components['rdm'], label='RDM', color='brown')
+        plt.xscale('log')
+        plt.yscale('log')
+        plt.xlabel('Radius (Mpc/h)')
+        plt.ylabel('Density (Msun/h/Mpc^3)')
+        plt.title('Density Profiles of BCM Components')
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+    
+    def plot_displacement(self):
+        """
+        Plot the displacement of the particles.
+        """
+        if self.r_vals is None:
+            raise ValueError("Radius array not created. Call calculate() first.")
+        
+        plt.figure(figsize=(10, 6))
+        plt.plot(self.r_vals, self.components['disp'], label='Displacement', color='blue')
+        plt.xscale('log')
+        plt.xlabel('Radius (Mpc/h)')
+        plt.ylabel('Displacement (Mpc/h)')
+        plt.title('Displacement of Particles')
+        plt.legend()
+        plt.grid(True)
+        plt.show()
     
 if __name__ == "__main__":
-    #test1 = CAMELSReader(path_group = '/Users/Maxi/Desktop/Uni/Master/MasterArbeit/MasterArbeit/Camels/groups_014_dm.hdf5',path_snapshot = '/Users/Maxi/Desktop/Uni/Master/MasterArbeit/MasterArbeit/Camels/snapshot_014_dm.hdf5')
-    #print(test1.particles[11]['pos'])
-    
-    #test2 = CAMELSReader(path_group = '/Users/Maxi/Desktop/Uni/Master/MasterArbeit/MasterArbeit/Camels/groups_014_dm.hdf5',path_snapshot = '/Users/Maxi/Desktop/Uni/Master/MasterArbeit/MasterArbeit/Camels/snapshot_014_dm.hdf5',index = 11)
-    print()
+    test = CAMELSReader(path_group = 'BCM/tests/Data/groups_014_dm.hdf5',path_snapshot = 'BCM/tests/#Data/snapshot_014_dm.hdf5',index=11)
+    test.init_calculations(M200=1e14, r200=0.77, c=None, h=0.6777, z=0, 
+                 Omega_m=0.3071, f=None, verbose=False)
+    print(test.components['disp'])
