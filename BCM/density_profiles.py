@@ -155,44 +155,91 @@ def y_rdm_ac(r, r_s, rho0, r_tr, norm = 1.0,
     """
 
     def xi_of_r(rf):
-        # Solve rf/ri - 1 = a*(M_i(ri)/M_f(rf) - 1) for ri in (ε, rf)
-        def G(ri):
-            try:
-                import Baryonic_Correction.BCM.utils as ut
-            except ImportError:
-                import BCM.utils as ut
-    
-            # mass before contraction
-            r_array = baryon_components[0][0]
-            M_i = mass_profile(ri, rho_nfw, r_s=r_s, rho0=rho0, r_tr=r_tr)
+        import BCM.utils as ut
+        # Solve rf/ri - 1 = a*(M_i(ri)/M_f(rf) - 1) for ri/rf = xi
+        # where M_i is the mass before contraction and M_f is the mass after contraction
+        # and rf is the radius at which we want to evaluate the density.
 
+        # mass in baryons at rf
+        M_b_rf = 0.0
+        if baryon_components:
+            for r_array, rho_array in baryon_components:
+                baryon_mass = ut.cumul_mass_single(rf, rho_array, r_array)
+                M_b_rf += baryon_mass
+        M_dm_initial_rf = mass_profile(rf, rho_nfw, r_s=r_s, rho0=rho0, r_tr=r_tr) # Note: Using analytical NFW mass here
+        
+        def G(ri):
+            # mass before contraction (2.16)
+            M_i_ri = mass_profile(ri, rho_nfw, r_s=r_s, rho0=rho0, r_tr=r_tr)
+            
+            # mass after contraction (2.16)
+            M_f_rf = M_i_ri + M_b_rf * (1.0 - f_cdm)  # Total mass after contraction
             # Use a modified scaling that ensures some minimum contraction
             a_min = 0.1 * a  # Minimum level of contraction (10% of normal)
             scale_radius = 0.2 * r_s 
             a_new = a_min + (a - a_min) * (1.0 - np.exp(-rf/scale_radius))
-
-             
+            a_new = a # set to a fixed value as Schneider
             
-            # mass in baryons at rf
-            M_b = 0.0
-            if baryon_components:
-                for r_array, rho_array in baryon_components:
-                    baryon_mass = ut.cumul_mass_single(rf, rho_array, r_array)
-                    M_b += baryon_mass
-            M_f = f_cdm * M_i + M_b
-            return rf/ri - 1.0 - a_new*(M_i/M_f - 1.0)
+            # Avoid division by zero or negative mass
+            if M_f_rf <= 1e-9: return np.nan
+            
+            ratio = M_i_ri / M_f_rf
+            
+            if ri < 1e-10: return np.inf
+            
+            return rf/ri - 1.0 - a_new*(ratio - 1.0)
 
         # bracket ri between a tiny inner radius and rf
-        ri_min = max(rf*1e-2, 1e-5)  # Increase minimum threshold
-        ri_max = min(rf*10, r_tr)    # Don't go beyond truncation radius
+        ri_min = max(rf*1e-5, 1e-8)  # Avoid division by zero
+        ri_max = max(rf*1e4, r_tr*1.5)    # Don't go beyond truncation radius
         
-        # Check if solution exists in this interval
-        g_min, g_max = G(ri_min), G(ri_max)
-        if g_min * g_max >= 0:
-            return 1.0
-        
-        ri = brentq(G, ri_min, ri_max, xtol=1e-6, disp=True)
-        return rf/ri
+        try:
+            g_min = G(ri_min)
+            g_max = G(ri_max)
+
+            # Handle potential NaN from G function (e.g., if M_f_rf was <= 0)
+            if np.isnan(g_min) or np.isnan(g_max):
+                 print(f"ERROR: G(ri) returned NaN at bounds for rf={rf:.3e}. ri_min={ri_min:.3e}, ri_max={ri_max:.3e}. Returning xi=1.0")
+                 return 1.0
+
+            if g_min * g_max >= 0:
+                # Root not bracketed - THIS IS LIKELY THE PROBLEM AREA
+                print(f"WARNING: Root not bracketed for rf={rf:.3e}. Bounds=[{ri_min:.3e}, {ri_max:.3e}].")
+                print(f"  G(min)={g_min:.3e}, G(max)={g_max:.3e}")
+                # Check if root is at the boundary
+                if abs(g_min) < 1e-7:
+                    print("  Root likely at ri_min.")
+                    return rf / ri_min
+                if abs(g_max) < 1e-7:
+                    print("  Root likely at ri_max.")
+                    return rf / ri_max
+
+                # Analyze G's behavior: Is it always positive or always negative?
+                # Calculate G at rf for reference: G(rf) should be -a*(M_nfw(rf)/M_f_rf - 1)
+                g_at_rf = G(rf)
+                print(f"  G(rf) = {g_at_rf:.3e}")
+                if g_min > 0 and g_max > 0:
+                    print("  G(ri) > 0 in bounds. Implies strong contraction (ri << rf) or issue.")
+                elif g_min < 0 and g_max < 0:
+                    print("  G(ri) < 0 in bounds. Implies strong expansion (ri >> rf) or issue.")
+
+                # As a fallback, return 1.0, but signal that it's problematic
+                print("  Returning default xi=1.0 due to bracketing issue.")
+                return 1.0
+
+            # If bracketed, proceed with root finding
+            ri = brentq(G, ri_min, ri_max, xtol=1e-6, rtol=1e-6) # Added rtol
+            xi = rf / ri
+
+            if xi <= 0:
+                 print(f"ERROR: Unphysical xi={xi:.3e} found for rf={rf:.3e}. ri={ri:.3e}. Returning 1.0")
+                 return 1.0
+            return xi
+
+        except ValueError as e:
+             # Catch errors during brentq execution
+             print(f"ERROR: brentq failed for rf={rf:.3e}: {e}. Bounds=[{ri_min:.3e}, {ri_max:.3e}]. G(min)={g_min:.3e}, G(max)={g_max:.3e}. Returning xi=1.0")
+             return 1.0
 
     
     # handle scalar or array r
@@ -210,7 +257,7 @@ def y_rdm_ac(r, r_s, rho0, r_tr, norm = 1.0,
         ri = rf/xi
         out[i] = norm * xi**(-3) * rho_nfw(ri, r_s, rho0, r_tr)
         
-    print(f"xi_vals: {xi_vals[:]}")
+    print(f"xi_vals: {xi_vals[:10]}")
         
     return out
 
@@ -243,6 +290,7 @@ def y_rdm_ac2(r, r_s, rho0, r_tr, M_i, M_f, norm = 1.0,
         # Check if solution exists in this interval
         g_min, g_max = G(ri_min), G(ri_max)
         if g_min * g_max >= 0:
+            print(f"WARNING: Root not bracketed for rf={rf:.3e}. Bounds=[{ri_min:.3e}, {ri_max:.3e}].")
             return 1.0
         
         ri = brentq(G, ri_min, ri_max, xtol=1e-6, disp=True)

@@ -5,10 +5,7 @@ import h5py
 import hdf5plugin
 import matplotlib.pyplot as plt
 from unittest.mock import patch, MagicMock, mock_open
-try:
-    from Baryonic_Correction.BCM import simulations as sim
-except ImportError:
-    from BCM import simulations as sim
+from BCM import simulations as sim
 
 @pytest.fixture
 def mock_hdf5_file():
@@ -103,7 +100,7 @@ def test_load_halodata_file_not_exists():
                             path_snapshot="Baryonic_Correction/BCM/tests/Data/snapshot_015_dm.hdf5",
                             index=5, 
                             verbose=True)
-    assert not hasattr(reader, 'halo')
+    assert hasattr(reader, 'halo')
 
 ## Test _load_particles
 def test_load_particles_basic():

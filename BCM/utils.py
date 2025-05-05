@@ -371,7 +371,7 @@ def plot_bcm_profiles(r_vals, components, title=None, save_path=None):
     return fig, axes
 
 def verify_schneider():
-    from Baryonic_Correction.BCM import simulations as sim
+    from BCM import simulations as sim
     from .parameters import DEFAULTS, CASE_PARAMS
     """Verify that our implementation matches Schneider & Teyssier 2016 Fig 1 by plotting cases (a, b, c)."""
     print("Verifying match to Schneider & Teyssier 2016 Fig 1")

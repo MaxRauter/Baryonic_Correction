@@ -1,11 +1,7 @@
 import pytest
 import numpy as np
-try:
-    from BCM import utils as ut
-    from BCM import density_profiles as dp
-except ImportError:
-    from Package.BCM import utils as ut
-    from Package.BCM import density_profiles as dp
+from BCM import utils as ut
+from BCM import density_profiles as dp
 
 @pytest.fixture
 def test_params():

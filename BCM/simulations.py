@@ -4,14 +4,9 @@ import h5py
 import glob
 import hdf5plugin
 import matplotlib.pyplot as plt
-try:
-    from Baryonic_Correction.BCM import density_profiles as dp
-    from Baryonic_Correction.BCM import utils as ut
-    from Baryonic_Correction.BCM import abundance_fractions as af
-except ImportError:
-    from BCM import density_profiles as dp
-    from BCM import utils as ut
-    from BCM import abundance_fractions as af
+from BCM import density_profiles as dp
+from BCM import utils as ut
+from BCM import abundance_fractions as af
 
 
 class CAMELSReader:
@@ -38,7 +33,7 @@ class CAMELSReader:
             self._load_halodata()
         if path_snapshot:
             self._load_simdata()
-        self._load_particles()
+            self._load_particles()
         
     def _load_halodata(self):
         """
@@ -424,10 +419,7 @@ class CAMELSReader:
         baryons = [(self.r_vals, y_bgas_vals), 
            (self.r_vals, y_egas_vals), 
            (self.r_vals, y_cgal_vals)]
-
-        M_i = M_nfw
-        
-        
+                
         # Calculate unnormalized profile
         rho_dm_contracted = dp.y_rdm_ac(self.r_vals, self.r_s, self.rho0, self.r_tr, 
                                     norm=1.0, a=0.68, f_cdm=0.839, 
@@ -509,9 +501,10 @@ class CAMELSReader:
         Calculate the RDM profile.
         """
         M_f = self.f_rdm * M_i + M_b
+        if np.isclose(M_f[-1], self.fixed_M_tot, atol=1e-2):
+            raise ValueError(f"M_f + M_b != M_tot: {M_f[-1]*self.f_rdm + M_b[-1]} != {self.fixed_M_tot}\n ratio M_f: {M_f[-1]*self.f_rdm / self.fixed_M_tot} \n ratio M_b: {M_b[-1] / self.fixed_M_tot}")
         # Calculate the RDM profile
-        rho_rdm = dp.y_rdm_ac2(self.r_vals, self.r_s, self.rho0, self.r_tr,
-                              M_i, M_f)
+        rho_rdm = dp.y_rdm_ac2(self.r_vals, self.r_s, self.rho0, self.r_tr, M_i, M_f)
         
         # Calculate the total mass and correction factor
         M_contracted = ut.cumul_mass(self.r_vals, rho_rdm)[-1]
