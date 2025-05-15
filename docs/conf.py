@@ -10,7 +10,7 @@
 
 import os
 import sys
-sys.path.insert(0, os.path.abspath('/Users/Maxi/Desktop/Uni/Master/Masterarbeit/Baryonic_Correction'))  # Adds the parent directory to the Python path
+sys.path.insert(0, os.path.abspath('..'))
 
 project = 'Baryonic_Correction_Model'
 copyright = '2025, Max Rauter'
@@ -33,6 +33,18 @@ extensions = [
 templates_path = ['_templates']
 exclude_patterns = []
 
+# Mock imports for packages that might cause installation issues on RTD
+autodoc_mock_imports = ["numpy", "scipy", "matplotlib", "h5py", "hdf5plugin", "tqdm"]
+
+# Autodoc settings
+autodoc_member_order = 'bysource'
+autoclass_content = 'both'
+
+# Napoleon settings for better docstring parsing
+napoleon_google_docstring = False
+napoleon_numpy_docstring = True
+napoleon_use_param = True
+napoleon_use_rtype = False
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
