@@ -12,7 +12,8 @@ DEFAULTS = {
     'Omega_b': 0.0483,     # Baryon density parameter
     'r_ej_factor': 3.5,    # r_ej = factor * r200
     'R_h_factor': 0.015,   # R_h = factor * r200
-    'Xi_contraction': 0.85 # Contraction factor
+    'Xi_contraction': 0.85, # Contraction factor
+    'f_cdm' : 1 - 0.0483/0.3071, # Fraction of CDM
 }
 
 # Test cases for abundance fractions

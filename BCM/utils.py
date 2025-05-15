@@ -2,6 +2,7 @@ import numpy as np
 from scipy.integrate import quad
 from scipy.optimize import brentq
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 def calc_concentration(M200, z):
     """Calculate halo concentration using the Duffy et al. (2008) relation"""
@@ -191,7 +192,7 @@ def cumul_mass(r_array, rho_array):
     mass = np.zeros_like(r_array)
     
     # Use a small but non-zero minimum radius to avoid singularity
-    r_min = 1e-6
+    r_min = 1e-8
     
     for i, r in enumerate(r_array):
         if r < r_min:
@@ -212,7 +213,7 @@ def cumul_mass(r_array, rho_array):
                 segment_r = np.linspace(r1, r2, 20)
                 segment_rho = np.interp(segment_r, r_array, rho_array)
                 segment_integrand = 4 * np.pi * segment_r**2 * segment_rho
-                segment_masses[j] = np.trapz(segment_integrand, segment_r)
+                segment_masses[j] = np.trapz(segment_integrand*segment_r, np.log(segment_r))
                 
             mass[i] = np.sum(segment_masses)
         else:
@@ -234,7 +235,7 @@ def cumul_mass_single(r, rho_array, r_array):
     Returns:
         float: The cumulative mass within radius r.
     """
-    r_min = 1e-6
+    r_min = 1e-8
     if r < r_min:
         return 0.0
 
@@ -246,7 +247,7 @@ def cumul_mass_single(r, rho_array, r_array):
             segment_r = np.linspace(r1, r2, 20)
             segment_rho = np.interp(segment_r, r_array, rho_array)
             segment_integrand = 4 * np.pi * segment_r ** 2 * segment_rho
-            segment_mass += np.trapz(segment_integrand, segment_r)
+            segment_mass += np.trapz(segment_integrand*segment_r, np.log(segment_r))
         return segment_mass
     else:
         integrand = lambda s: 4 * np.pi * s ** 2 * np.interp(s, r_array, rho_array)
@@ -370,7 +371,7 @@ def plot_bcm_profiles(r_vals, components, title=None, save_path=None):
     
     return fig, axes
 
-def verify_schneider():
+def verify_schneider(verbose=False):
     from BCM import simulations as sim
     from .parameters import DEFAULTS, CASE_PARAMS
     """Verify that our implementation matches Schneider & Teyssier 2016 Fig 1 by plotting cases (a, b, c)."""
@@ -390,12 +391,13 @@ def verify_schneider():
 
     for i, case in enumerate(cases):
         # Run BCM calculation for each case
-        print(fr"Paper carse ({case}):")
+        print("\nPaper case ({})".format(case))
         case_params = CASE_PARAMS[case]
         f_rdm = case_params['f_rdm']
-        bcm = sim.CAMELSReader()
+        bcm = sim.CAMELSReader(verbose=verbose)
         bcm.r_ej = r_ej
         bcm.R_h = R_h
+        bcm.fbar = 1 - f_rdm
         bcm.init_calculations(
             M200=M200,
             r200=r200,
@@ -404,10 +406,8 @@ def verify_schneider():
             z=z,
             Omega_m=Omega_m,
             f=case_params,
-            verbose=False
+            verbose=verbose
         )
-        bcm.fbar = 1 - f_rdm
-        bcm.calculate()
         components = bcm.components
         r_vals = bcm.r_vals
         r_s = components['r_s']
@@ -462,7 +462,253 @@ def verify_schneider():
         ax3.set_xlim(1e-2, 1e2)
         ax3.grid(True, which="both", ls=":", alpha=0.3)
         ax3.legend(fontsize=8)
+        print("\n")
     fig.suptitle("Comparison of Cases (a, b, c) from Schneider & Teyssier 2016", fontsize=20)
     plt.tight_layout(rect=[0, 0, 1, 0.96])
     plt.savefig("schneider_match.png", dpi=300, bbox_inches='tight')
     #plt.show()
+    
+def calc_power_spectrum(positions, box_size, mesh_size=256):
+    """Calculate the power spectrum using only NumPy."""
+    import numpy as np
+    
+    # Create a density grid
+    grid = np.zeros((mesh_size, mesh_size, mesh_size), dtype=np.float32)
+    
+    # Convert positions to grid indices
+    indices = np.floor(positions / box_size * mesh_size).astype(int) % mesh_size
+    
+    # Bin particles to grid (simple NGP scheme)
+    for p in tqdm(range(len(positions)), desc="Binning particles"):
+        i, j, k = indices[p]
+        grid[i, j, k] += 1
+    
+    # Convert to overdensity field
+    mean_density = len(positions) / mesh_size**3
+    grid = grid / mean_density - 1.0
+    
+    # Calculate power spectrum
+    fft_grid = np.fft.fftn(grid)
+    power = np.abs(fft_grid)**2
+    
+    # Create k-bins
+    kf = 2*np.pi/box_size  # Fundamental mode
+    kx = kf * np.fft.fftfreq(mesh_size) * mesh_size
+    ky = kf * np.fft.fftfreq(mesh_size) * mesh_size
+    kz = kf * np.fft.fftfreq(mesh_size) * mesh_size
+    
+    # Get k-magnitudes
+    kgrid = np.sqrt(kx[np.newaxis, np.newaxis, :]**2 + 
+                   ky[np.newaxis, :, np.newaxis]**2 + 
+                   kz[:, np.newaxis, np.newaxis]**2)
+    
+    # Bin power spectrum
+    kbins = np.linspace(0.1*kf, kf*mesh_size/2, 20)
+    k_vals = 0.5 * (kbins[1:] + kbins[:-1])
+    power_binned = np.zeros_like(k_vals)
+    
+    for i in range(len(kbins)-1):
+        mask = (kgrid >= kbins[i]) & (kgrid < kbins[i+1])
+        if np.sum(mask) > 0:
+            power_binned[i] = np.mean(power[mask])
+    
+    return k_vals, power_binned
+
+def calc_power_spectrum2(positions, box_size, grid_size=256):
+    """
+    Compute the matter power spectrum from particle positions using FFT.
+    
+    Parameters:
+        positions (ndarray): (N, 3) array of particle positions in box (in units matching box_size).
+        box_size (float): Size of the simulation box (same units as positions).
+        grid_size (int): Number of grid cells along each axis (default: 256).
+        window_function (str): Mass assignment scheme ('ngp', 'cic', or 'tsc').
+    
+    Returns:
+        k_vals (ndarray): Array of wavenumbers.
+        Pk (ndarray): Power spectrum values at k.
+    """
+    N = positions.shape[0]
+    dx = box_size / grid_size
+    
+    # Initialize density grid
+    rho = np.zeros((grid_size, grid_size, grid_size), dtype=np.float32)
+    
+    # Assign particles to grid using CIC
+    for pos in positions:
+        ix = (pos / dx).astype(int) % grid_size
+        rho[ix[0], ix[1], ix[2]] += 1
+    
+    # Subtract mean density → overdensity δ
+    rho_mean = np.mean(rho)
+    delta = rho / rho_mean - 1.0
+    
+    # Compute Fourier transform
+    delta_k = np.fft.fftn(delta)
+    delta_k = np.fft.fftshift(delta_k)  # Shift zero-frequency to center
+    
+    # Compute power spectrum
+    power_spectrum = np.abs(delta_k)**2
+    
+    # Build k-grid
+    k_vals = np.fft.fftfreq(grid_size, d=dx)
+    kx, ky, kz = np.meshgrid(k_vals, k_vals, k_vals, indexing='ij')
+    k_mag = np.sqrt(kx**2 + ky**2 + kz**2)
+    k_mag = np.fft.fftshift(k_mag) * 2 * np.pi  # Convert to physical units
+    
+    # Bin power spectrum in k
+    k_bins = np.linspace(0, np.max(k_mag), grid_size // 2)
+    Pk = np.zeros_like(k_bins)
+    counts = np.zeros_like(k_bins)
+    
+    for i in range(len(k_bins) - 1):
+        mask = (k_mag >= k_bins[i]) & (k_mag < k_bins[i + 1])
+        Pk[i] = np.mean(power_spectrum[mask]) if np.any(mask) else 0
+        counts[i] = np.sum(mask)
+    
+    k_centers = 0.5 * (k_bins[:-1] + k_bins[1:])
+    Pk = Pk[:-1]
+    
+    return k_centers, Pk
+
+def compare_power_spectra(dmo_positions, bcm_positions, box_size, output_file=None):
+    """Compare power spectra between DMO and BCM simulations using NumPy."""
+    print("Comparing power spectra between DMO and BCM simulations")
+    
+    # Ensure equal particle counts
+    if len(dmo_positions) != len(bcm_positions):
+        print("WARNING: Particle counts don't match! Power spectrum comparison may be invalid.")
+        if len(bcm_positions) < len(dmo_positions):
+            print(f"Using only the first {len(bcm_positions)} DMO particles to match BCM count")
+            dmo_positions = dmo_positions[:len(bcm_positions)]
+        else:
+            print(f"Using only the first {len(dmo_positions)} BCM particles to match DMO count")
+            bcm_positions = bcm_positions[:len(dmo_positions)]
+    
+    print("Calculating power spectrum for DMO")
+    k_dmo, Pk_dmo = calc_power_spectrum(dmo_positions, box_size)
+    print("Calculating power spectrum for BCM")
+    k_bcm, Pk_bcm = calc_power_spectrum(bcm_positions, box_size)
+    
+    plt.figure(figsize=(10, 6))
+    #plt.loglog(k_dmo, Pk_dmo, label='DMO')
+    #plt.loglog(k_bcm, Pk_bcm, label='BCM')
+    
+    # Calculate ratio
+    ratio = Pk_bcm / Pk_dmo
+    plt.loglog(k_dmo, ratio, label='Ratio BCM/DMO', linestyle='--')
+    
+    plt.xlabel('k [h/Mpc]')
+    plt.ylabel('P(k) [(Mpc/h)³]')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    
+    # Extend the limits to show higher k values
+    #k_min = 2*np.pi/box_size
+    #plt.xlim(k_min, 20)  # Upper limit extended to k=20 h/Mpc
+    
+    
+    if output_file:
+        plt.savefig(output_file)
+    
+    plt.show()
+    
+    return k_dmo, Pk_dmo, k_bcm, Pk_bcm
+
+def plot_power_spectrum(k, Pk, title=None, save_path=None):
+    """Plot the power spectrum."""
+    plt.figure(figsize=(10, 6))
+    plt.loglog(k, Pk)
+    plt.xlabel('k [h/Mpc]')
+    plt.ylabel('P(k) [(Mpc/h)³]')
+    plt.title(title if title else 'Power Spectrum')
+    plt.grid(True, alpha=0.3)
+    
+    if save_path:
+        plt.savefig(save_path)
+    
+    plt.show()
+
+def verify_schneider2(verbose=False):
+    from BCM import simulations as sim
+    from .parameters import DEFAULTS, CASE_PARAMS
+    """Verify that our implementation matches Schneider & Teyssier 2016 Fig 1 by plotting cases (a, b)."""
+    print("Verifying match to Schneider & Teyssier 2016 Fig 1")
+    # Just use cases a and b
+    cases = list(CASE_PARAMS.keys())[:2]  # Only the first two cases (a and b)
+    
+    # Create a figure with 2 rows (cases) and 2 columns (density and displacement)
+    fig, axes = plt.subplots(len(cases), 2, figsize=(12, 12))
+    
+    # global defaults
+    M200 = DEFAULTS['M200']
+    r200 = DEFAULTS['r200']
+    c = DEFAULTS['c']
+    h = DEFAULTS['h']
+    z = DEFAULTS['z']
+    Omega_m = DEFAULTS['Omega_m']
+    r_ej = DEFAULTS['r_ej_factor'] * r200
+    R_h = DEFAULTS['R_h_factor'] * r200
+
+    for i, case in enumerate(cases):
+        # Run BCM calculation for each case
+        print(f"\nPaper case ({case})")
+        case_params = CASE_PARAMS[case]
+        f_rdm = case_params['f_rdm']
+        bcm = sim.CAMELSReader(verbose=verbose)
+        bcm.r_ej = r_ej
+        bcm.R_h = R_h
+        bcm.fbar = 1 - f_rdm
+        bcm.init_calculations(
+            M200=M200,
+            r200=r200,
+            c=c,
+            h=h,
+            z=z,
+            Omega_m=Omega_m,
+            f=case_params,
+            verbose=verbose
+        )
+        components = bcm.components
+        r_vals = bcm.r_vals
+        r_s = components['r_s']
+        disp = components['disp']
+
+        # Density profiles (first column)
+        ax1 = axes[0, i]
+        ax1.loglog(r_vals, components['rho_dmo'], 'b-', label='DM-only (NFW+Bkg)')
+        ax1.loglog(r_vals, components['rdm'], 'b--', label='Relaxed DM (rdm)')
+        ax1.loglog(r_vals, components['bgas'], 'g--', label='Bound gas (bgas)')
+        ax1.loglog(r_vals, components['egas'], 'r--', label='Ejected gas (egas)')
+        ax1.loglog(r_vals, components['cgal'], 'm--', label='Central galaxy (cgal)')
+        ax1.loglog(r_vals, components['rho_bkg'], 'y--', label='Background')
+        ax1.loglog(r_vals, components['rho_bcm'], 'r-', lw=2, label='Total bcm profile')
+        ax1.axvline(r200, color='gray', linestyle=':', label='r200')
+        ax1.axvline(r_s, color='gray', linestyle='--', label='r_s')
+        ax1.set_xlabel("Radius [Mpc/h]")
+        ax1.set_ylabel("Density [Msun/h/Mpc³]")
+        ax1.set_title(f"Density Profiles - Case {case}")
+        ax1.set_xlim([1e-2, 3e1])
+        ax1.set_ylim([2e9, 7e16])
+        ax1.legend(fontsize=8)
+        ax1.grid(True, which="both", ls=":", alpha=0.3)
+        
+        # Displacement function (second column)
+        ax2 = axes[1, i]
+        disp_pos = np.where(disp > 0, disp, 0)
+        disp_neg = np.where(disp < 0, disp, 0)
+        ax2.loglog(r_vals, np.abs(disp_pos), 'b-', lw=2, label='positive')
+        ax2.loglog(r_vals, np.abs(disp_neg), 'b--', lw=2, label='negative')
+        ax2.axvline(r200, color='gray', linestyle=':', label='r200')
+        ax2.set_xlabel("Radius [Mpc/h]")
+        ax2.set_ylabel("Displacement [Mpc/h]")
+        ax2.set_title(f"Displacement Function - Case {case}")
+        ax2.set_ylim(1e-4, 1.1)
+        ax2.set_xlim(1e-2, 1e2)
+        ax2.grid(True, which="both", ls=":", alpha=0.3)
+        ax2.legend(fontsize=8)
+        
+    fig.suptitle("Comparison of Cases (a, b) from Schneider & Teyssier 2016", fontsize=16)
+    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    plt.savefig("Schneider_match_4.png", dpi=300, bbox_inches='tight')
+

@@ -1,0 +1,8 @@
+sphinx>=5.1.1
+sphinx-rtd-theme
+sphinx-tabs
+nbsphinx
+sphinx_gallery
+numpy
+scipy
+matplotlib

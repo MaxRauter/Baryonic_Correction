@@ -4,9 +4,11 @@ import h5py
 import glob
 import hdf5plugin
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 from BCM import density_profiles as dp
 from BCM import utils as ut
 from BCM import abundance_fractions as af
+from BCM import parameters as par
 
 
 class CAMELSReader:
@@ -103,7 +105,7 @@ class CAMELSReader:
                     
                     # Store common simulation properties
                     if 'BoxSize' in header.attrs:
-                        self.boxsize = header.attrs['BoxSize']
+                        self.boxsize = header.attrs['BoxSize']/ 1e3  # Convert to Mpc/h
                     if 'Redshift' in header.attrs:
                         self.z = header.attrs['Redshift']
                     if 'Time' in header.attrs:
@@ -146,15 +148,15 @@ class CAMELSReader:
                     stop = start + self.halo['lentype_h'][halo][1]
                     parttype1 = f['PartType1']
                     particles.append({
-                        'pos': parttype1['Coordinates'][start:stop],
-                        'vel': parttype1['Velocities'][start:stop],
+                        'pos': parttype1['Coordinates'][start:stop]/1e3,
+                        'vel': parttype1['Velocities'][start:stop]/1e3,
                         'id': parttype1['ParticleIDs'][start:stop],
                     })
         self.particles = particles
     
     def get_halo_particles(self, index = None):
         path = self.path_snapshot 
-        print(f"Trying to open snapshot file: {path}")  # Add this line
+        #print(f"Trying to open snapshot file: {path}")  # Add this line
         if not os.path.exists(path):
             print(f"File does not exist: {path}")
             return None       
@@ -169,29 +171,59 @@ class CAMELSReader:
             if 'PartType1' in f:
                 parttype1 = f['PartType1']
                 particles ={
-                    'pos': parttype1['Coordinates'][start:stop],
-                    'vel': parttype1['Velocities'][start:stop],
+                    'pos': parttype1['Coordinates'][start:stop]/1e3,
+                    'vel': parttype1['Velocities'][start:stop]/1e3,
                     'id': parttype1['ParticleIDs'][start:stop],
                 }
+        self.particles = particles
         return particles
     
     def get_halo_center(self, index=None):
         """Get the center of a halo."""
         if index is None:
-            index = self.index
-        if index is None or not self.halo:
-            return None
-        return self.halo['pos'][index]
+            if self.index is None:
+                return self.halo['pos']
+            else: 
+                index = self.index
+        return self.halo['pos'][index]/1e3
     
     def get_particles_relative_position(self, index=None):
         """Get particle positions relative to halo center."""
-        particles = self.get_halo_particles(index)
-        if not particles:
-            return None
+        if index is not None:
+            particles = self.get_halo_particles(index)
             
-        center = self.get_halo_center(index)
-        rel_pos = particles['pos'] - center
-        return rel_pos
+            if particles is None or 'pos' not in particles:
+                print(f"No valid particles found for halo {index}")
+                return None
+            
+            center = self.get_halo_center(index)
+            if center is None:
+                print(f"No center found for halo {index}")
+                return None
+            
+            rel_pos = particles['pos'] - center
+            #print(f"Relative positions shape of particles in halo {index}: {np.shape(rel_pos)}")
+            return rel_pos
+        else:
+            # Use all halos
+            indices = self.halo['id']
+            
+            result = {}
+            for idx in indices:
+                print(f"Processing halo {idx}...")
+                particles = self.get_halo_particles(idx)
+                center = self.get_halo_center(idx)
+                rel_pos = particles['pos'] - center
+                if rel_pos is not None:
+                    result[idx] = rel_pos
+                else:
+                    print(f"Skipping halo {idx} due to errors")
+            
+            print(f"Processed {len(result)} halos successfully out of {len(indices)} requested")
+            print(f"Shape of result: {np.shape(result)}")
+            print(f"Keys of result: {result.keys()}")
+            print(f"Result: {result}")
+            return result
     
     def plot_halo_masses_histogram(self, masslimit=None):
         """Plot a histogram of halo masses."""
@@ -220,8 +252,8 @@ class CAMELSReader:
         # Return minimum and maximum mass for informational purposes
         return f"Mass range: {valid_masses.min():.2e} - {valid_masses.max():.2e} M_sun/h" + str
     
-    def init_calculations(self, M200=1e14, r200=0.77, c=None, h=0.6777, z=0, 
-                 Omega_m=0.3071, f=None, verbose=False):
+    def init_calculations(self, M200=None, r200=None, c=None, h=None, z=None, 
+                 Omega_m=None, f=None, verbose=False):
         """
         Initialize the Baryonic Correction Model for a given halo.
         
@@ -239,10 +271,12 @@ class CAMELSReader:
         # Store input parameters
         self.M200 = self.halo['m200'][self.index] if self.index is not None else M200
         self.r200 = self.halo['r200'][self.index] if self.index is not None else r200
-        self.h = h
-        self.z = z
-        self.Om = Omega_m
-        self.Ol = 1 - Omega_m
+        self.h = h if h is not None else self.h
+        self.z = z if z is not None else self.z
+        self.Om = Omega_m if Omega_m is not None else self.Om
+        self.Ol = self.Ol if hasattr(self,"Ol") else 1 - self.Om
+        self.Ob = self.Ob if hasattr(self,"Ob") else par.DEFAULTS['Omega_b']
+        
         if c == None:
             c = ut.calc_concentration(self.M200,z)
         self.c = c
@@ -259,11 +293,15 @@ class CAMELSReader:
         self._set_abundance_fractions(f)
         
         # Calculate other parameters if not provided
-        if not hasattr(self, 'r_ej'):
+        if r200 is None:
             self.r_ej = ut.calc_r_ej2(M200, r200, z=z, Omega_m=Omega_m, 
                                     Omega_Lambda=self.Ol, h=h)
-        if not hasattr(self, 'R_h'):
+        else:
+            self.r_ej = par.DEFAULTS['r_ej_factor'] * self.r200
+        if r200 is None:
             self.R_h = ut.calc_R_h(M200, r200)
+        else:
+            self.R_h = par.DEFAULTS['R_h_factor'] * self.r200
         
         # Initialize component storage
         self.components = {}
@@ -280,7 +318,7 @@ class CAMELSReader:
         if (isinstance(f, list) and len(f) == 4) or (isinstance(f, dict) and len(f) == 4):
             # Custom abundance fractions
             if self.verbose:
-                print("Using custom abundance fractions.")
+                print("Using fixed abundance fractions.")
             if isinstance(f, dict):
                 self.f_rdm = f['f_rdm']
                 self.f_bgas = f['f_bgas']
@@ -308,13 +346,12 @@ class CAMELSReader:
     def _print_parameters(self):
         """Print the model parameters."""
         print(f"BCM with M200 = {self.M200:.2e} Msun/h, r200 = {self.r200:.3f} Mpc/h, "
-              f"c = {self.c:.2f}, h = {self.h:.3f}, z = {self.z:.2f}")
+              f"c = {self.c:.2f}, h = {self.h:.3f}, z = {self.z:.2f}, Omega_m = {self.Om:.3f}, Omega_b = {self.Ob:.3f}, fbar = {self.fbar:.3f}")
         print("Abundance fractions:")
         print(f"  f_rdm  = {self.f_rdm:.3f}")
         print(f"  f_bgas = {self.f_bgas:.3f}")
         print(f"  f_cgal = {self.f_cgal:.3f}")
         print(f"  f_egas = {self.f_egas:.3f}")
-        print(f"Calculated NFW normalization: rho0 = {self.rho0:.3e}")
         
     def _print_components_at(self,r):
         """Print the calculated components at given radius."""
@@ -349,7 +386,10 @@ class CAMELSReader:
         self.rho0 = ut.bracket_rho0(self.M200, self.r_s, self.r_tr, self.r200)
         rho_nfw = np.array([dp.rho_nfw(r, self.r_s, self.rho0, self.r_tr) for r in self.r_vals])
         M_nfw = ut.cumul_mass(self.r_vals, rho_nfw)
-        self.fixed_M_tot = M_nfw[-1]
+        M_tot = M_nfw[-1]
+        #M_tot2 = dp.mass_nfw_analytical(self.r_vals[-1], self.r_s, self.rho0)
+        #print(f"Fixed M_tot: {M_tot:.3e}, M_tot2: {M_tot2:.3e}")
+        self.fixed_M_tot = M_tot
         return M_nfw
 
     def _calculate_normalizations(self):
@@ -362,12 +402,16 @@ class CAMELSReader:
             lambda r, M_tot, r_ej: dp.y_egas(r, M_tot, r_ej), 
             (1.0, self.r_ej), self.f_egas * self.fixed_M_tot, self.r200
         )
-        norm_cgal = ut.normalize_component(
+        norm_cgal = ut.normalize_component_total(
             lambda r, M_tot, R_h: dp.y_cgal(r, M_tot, R_h), 
             (1.0, self.R_h), self.f_cgal * self.fixed_M_tot, self.r200
         )
+        norm_yrdm_fixed_xi = ut.normalize_component(
+            lambda r, r_s, rho0, r_tr, xi: dp.y_rdm_fixed_xi(r, r_s, rho0, r_tr, xi), 
+            (self.r_s, self.rho0, self.r_tr, 0.85), self.f_rdm * self.fixed_M_tot, self.r200
+        )
         
-        return norm_bgas, norm_egas, norm_cgal
+        return norm_bgas, norm_egas, norm_cgal, norm_yrdm_fixed_xi
 
     def _calculate_normalizations_old(self):
         norm_bgas = ut.normalize_component_total(
@@ -399,7 +443,7 @@ class CAMELSReader:
         
         return M_target / unnorm_mass
     
-    def _compute_density_profiles(self, norm_bgas, norm_egas, norm_cgal, M_nfw):
+    def _compute_density_profiles(self, norm_bgas, norm_egas, norm_cgal, norm_rdm_fixed_xi, M_nfw):
         
         rho_dmo_vals = np.array([dp.rho_nfw(r, self.r_s, self.rho0, self.r_tr) + 
                                dp.rho_background(r, 1) for r in self.r_vals])
@@ -413,6 +457,13 @@ class CAMELSReader:
                               for r in self.r_vals])
         y_cgal_vals = np.array([dp.y_cgal(r, norm_cgal, self.R_h) 
                               for r in self.r_vals])
+        y_rdm_vals_fixed_xi = np.array([dp.y_rdm_fixed_xi(r, self.r_s, self.rho0, self.r_tr, norm_rdm_fixed_xi)
+                                for r in self.r_vals])
+        
+        y_bgas_vals, y_egas_vals, y_cgal_vals,y_rdm_vals_fixed_xi = self.correction_factors_baryons(
+            [self.f_bgas, self.f_egas, self.f_cgal,self.f_rdm], 
+            [y_bgas_vals, y_egas_vals, y_cgal_vals, y_rdm_vals_fixed_xi]
+        )
         
         # baryon components for xi
         # Note: y_bgas, y_egas, and y_cgal are already normalized
@@ -423,20 +474,41 @@ class CAMELSReader:
         # Calculate unnormalized profile
         rho_dm_contracted = dp.y_rdm_ac(self.r_vals, self.r_s, self.rho0, self.r_tr, 
                                     norm=1.0, a=0.68, f_cdm=0.839, 
-                                    baryon_components=baryons)
+                                    baryon_components=baryons, verbose=self.verbose)
 
         # Calculate total mass and correction factor
         M_contracted = ut.cumul_mass(self.r_vals, rho_dm_contracted)[-1]
         target_mass = self.f_rdm * self.fixed_M_tot
         correction_factor = target_mass / M_contracted
-
-        print(f"RDM mass correction factor: {correction_factor:.4f}")
+        
+        if self.verbose:
+            print(f"RDM mass correction factor: {correction_factor:.4f}")
 
         # Apply correction
         rho_dm_contracted *= correction_factor
         y_rdm_vals = rho_dm_contracted
+        y_rdm_vals = y_rdm_vals_fixed_xi
+
         rho_bcm = y_rdm_vals + y_bgas_vals + y_egas_vals + y_cgal_vals + rho_bkg_vals
+        self.profiles = {
+            'rho_dmo': rho_dmo_vals,
+            'rho_nfw': rho_nfw_vals,
+            'rho_bkg': rho_bkg_vals,
+            'y_bgas': y_bgas_vals,
+            'y_egas': y_egas_vals,
+            'y_cgal': y_cgal_vals,
+            'y_rdm': y_rdm_vals,
+            'rho_bcm': rho_bcm
+        }
         return rho_dmo_vals, rho_nfw_vals, rho_bkg_vals, y_bgas_vals, y_egas_vals, y_cgal_vals, y_rdm_vals, rho_bcm
+
+    def correction_factors_baryons(self, fractions, profiles):
+        cor_profiles = []
+        for i in range(len(fractions)):
+            mass = ut.cumul_mass(self.r_vals, profiles[i])[-1]
+            correction = (fractions[i] * self.fixed_M_tot) / mass
+            cor_profiles.append(correction*profiles[i])
+        return cor_profiles
 
     def _compute_mass_profiles(self, rho_dmo_vals, rho_bkg_vals, y_rdm_vals, y_bgas_vals, y_egas_vals, y_cgal_vals, rho_bcm, M_nfw):
         M_dmo = ut.cumul_mass(self.r_vals, rho_dmo_vals)
@@ -456,11 +528,26 @@ class CAMELSReader:
             'M_bcm': M_bcm,
             'M_nfw': M_nfw
         }
-        if True:#self.verbose:
-            #self._print_masses_at_r200()
+        
+        self._check_masses()
+        if self.verbose:
             self._print_masses_at_infinity()
         return M_dmo, M_bkg, M_rdm, M_bgas, M_egas, M_cgal, M_bcm
 
+    def _check_masses(self):
+        tol = 1e-2  # Tolerance for mass comparison
+        if not np.isclose(self.masses['M_bgas'][-1], self.f_bgas * self.fixed_M_tot, rtol=tol):
+            raise ValueError(f"Mass of baryons does not match: {self.masses['M_bgas'][-1]:.3e} != {self.f_bgas * self.fixed_M_tot:.3e}")
+        if not np.isclose(self.masses['M_egas'][-1], self.f_egas * self.fixed_M_tot, rtol=tol):
+            raise ValueError(f"Mass of baryons does not match: {self.masses['M_egas'][-1]:.3e} != {self.f_egas * self.fixed_M_tot:.3e}")
+        if not np.isclose(self.masses['M_cgal'][-1], self.f_cgal * self.fixed_M_tot, rtol=tol):
+            raise ValueError(f"Mass of baryons does not match: {self.masses['M_cgal'][-1]:.3e} != {self.f_cgal * self.fixed_M_tot:.3e}")
+        """if not np.isclose(self.masses['M_rdm'][-1], self.f_rdm * self.fixed_M_tot, rtol=tol):
+            raise ValueError(f"Mass of baryons does not match: {self.masses['M_rdm'][-1]:.3e} != {self.f_rdm * self.fixed_M_tot:.3e}")"""
+        total_bcm = self.masses['M_bgas'][-1] + self.masses['M_egas'][-1] + self.masses['M_cgal'][-1] + self.masses['M_rdm'][-1]
+        if not np.isclose(self.masses['M_nfw'][-1], self.fixed_M_tot, rtol=tol):
+            raise ValueError(f"Mass of baryons does not match: {self.masses['M_nfw'][-1]:.3e} != {self.fixed_M_tot:.3e}")
+    
     def _invert_mass_profile(self, M_bcm):
         from scipy.interpolate import interp1d
         return interp1d(M_bcm, self.r_vals, bounds_error=False, fill_value="extrapolate")
@@ -500,11 +587,12 @@ class CAMELSReader:
         """
         Calculate the RDM profile.
         """
-        M_f = self.f_rdm * M_i + M_b
+        f_cdm = M_i/(M_i + M_b)
+        M_f = f_cdm * M_i + M_b
         if np.isclose(M_f[-1], self.fixed_M_tot, atol=1e-2):
             raise ValueError(f"M_f + M_b != M_tot: {M_f[-1]*self.f_rdm + M_b[-1]} != {self.fixed_M_tot}\n ratio M_f: {M_f[-1]*self.f_rdm / self.fixed_M_tot} \n ratio M_b: {M_b[-1] / self.fixed_M_tot}")
         # Calculate the RDM profile
-        rho_rdm = dp.y_rdm_ac2(self.r_vals, self.r_s, self.rho0, self.r_tr, M_i, M_f)
+        rho_rdm = dp.y_rdm_ac2(self.r_vals, self.r_s, self.rho0, self.r_tr, M_i, M_f, self.verbose)
         
         # Calculate the total mass and correction factor
         M_contracted = ut.cumul_mass(self.r_vals, rho_rdm)[-1]
@@ -551,17 +639,19 @@ class CAMELSReader:
         print(f"  f_egas = {self.f_egas:.3f}")
         print(f"  rho0 = {self.rho0:.3e}")
     
-    def calculate(self, r_min=0.0001, r_max=2000, n_points=1000):
+    def calculate(self, r_min=0.001, r_max=None, n_points=1000):
         """
         Calculate all BCM profiles and properties.
         """
+        if r_max is None:
+            r_max = 10000 * self.r200 
         # Create a radius array
         self._create_radius_array(r_min, r_max, n_points)
         
         M_nfw = self._calc_NFW_target_mass()
         
         # Calculate normalizations
-        norm_bgas, norm_egas, norm_cgal = self._calculate_normalizations()
+        norm_bgas, norm_egas, norm_cgal, norm_rdm_fixed_xi = self._calculate_normalizations()
         if self.verbose:
             print(f"Component normalizations to contain M200:")
             print(f"  bgas: {norm_bgas:.3e}")
@@ -569,15 +659,17 @@ class CAMELSReader:
             print(f"  cgal: {norm_cgal:.3e}")
         
         # Calculate density profiles
-        rho_dmo_vals, rho_nfw_vals, rho_bkg_vals, y_bgas_vals, y_egas_vals, y_cgal_vals, y_rdm_vals, rho_bcm = self._compute_density_profiles(norm_bgas, norm_egas, norm_cgal, M_nfw)
+        rho_dmo_vals, rho_nfw_vals, rho_bkg_vals, y_bgas_vals, y_egas_vals, y_cgal_vals, y_rdm_vals, rho_bcm = self._compute_density_profiles(norm_bgas, norm_egas, norm_cgal, norm_rdm_fixed_xi, M_nfw)
         
         # Calculate mass profiles
         M_dmo, M_bkg, M_rdm, M_bgas, M_egas, M_cgal, M_bcm = self._compute_mass_profiles(rho_dmo_vals, rho_bkg_vals, y_rdm_vals, y_bgas_vals, y_egas_vals, y_cgal_vals, rho_bcm, M_nfw)
         
-        M_b = M_bgas + M_egas + M_cgal
-        M_i = M_nfw
+        
+        #M_b = M_bgas + M_egas + M_cgal
+        #M_i = M_nfw
         # Calculate RDM profile
-        rho_rdm_vals2, M_rdm_2 = self._calculate_rdm(M_i, M_b)
+        #y_rdm_vals2, M_rdm2 = self._calculate_rdm(M_i, M_b)
+        
         
         # Calculate displacement
         f_inv_bcm = self._invert_mass_profile(M_bcm)
@@ -616,25 +708,46 @@ class CAMELSReader:
             particles = self.particles
         if self.r_vals is None:
             raise ValueError("Radius array not created. Call calculate() first.")
+        displaced_positions = []
+        particles_per_halo =[]
 
-        # Get the displacement for each particle
-        rel_pos = self.get_particles_relative_position()
-        r = np.linalg.norm(rel_pos, axis=1)
-        disp = np.interp(r, self.r_vals, self.components['disp'])
+        # Get the displacement for each particle in each halo
+        for halo in tqdm(self.halo['id'], desc="Applying displacement"):
+            try:
+                rel_pos = self.get_particles_relative_position(halo)
+            except Exception as e:
+                print(f"Error calculating relative positions: {e}")
+                return None
 
-        # Avoid division by zero for particles at the center
-        with np.errstate(invalid='ignore', divide='ignore'):
-            direction = np.zeros_like(rel_pos)
-            mask = r > 0
-            direction[mask] = rel_pos[mask] / r[mask, np.newaxis]
+            r = np.linalg.norm(rel_pos, axis=1)
+            disp = np.interp(r, self.r_vals, self.components['disp'])
 
-        # Apply the displacement along the radial direction
-        new_rel_pos = rel_pos + direction * disp[:, np.newaxis]
+            # Avoid division by zero for particles at the center
+            with np.errstate(invalid='ignore', divide='ignore'):
+                direction = np.zeros_like(rel_pos)
+                mask = r > 0
+                direction[mask] = rel_pos[mask] / r[mask, np.newaxis]
 
-        # Optionally, shift back to absolute coordinates
-        center = self.get_halo_center()
-        new_pos = new_rel_pos + center
+            # Apply the displacement along the radial direction
+            new_rel_pos = rel_pos + direction * disp[:, np.newaxis]
 
+            # Shift back to absolute coordinates
+            center = self.get_halo_center(halo)
+            displaced_positions.append(new_rel_pos + center)
+            theorectical_particle_count = self.halo['lentype_h'][halo][1]
+            particles_per_halo.append(theorectical_particle_count)
+            if theorectical_particle_count != len(rel_pos):
+                print(f"Warning: Theoretical particle count {theorectical_particle_count} does not match actual count {len(rel_pos)} for halo {halo}")
+                return None
+        # Concatenate all displaced positions into a single array
+        if len(displaced_positions) > 0:
+            new_pos = np.vstack(displaced_positions)
+        else:
+            new_pos = np.array([])
+        print(f"Displaced positions shape: {new_pos.shape}")
+        #print(f"Particles per halo: {particles_per_halo}")
+        print(f"Total number of particles (per halo): {np.sum(particles_per_halo)}")
+        print(f"Total number of displaced positions: {len(new_pos)}")
         return new_pos
     
     def plot_density_profiles(self):
@@ -677,8 +790,58 @@ class CAMELSReader:
         plt.grid(True)
         plt.show()
     
+    def calc_displ_and_compare_powerspectrum(self, output_file=None):
+        """
+        Calculate the power spectrum of the components.
+        """
+        # Get particles associated with halos only
+        total_particles = 0
+        all_positions = []
+        
+        # Process each halo to get original positions
+        for halo in self.halo['id']:
+            particles = self.get_halo_particles(halo)
+            if particles is not None and 'pos' in particles:
+                all_positions.append(particles['pos'])
+                total_particles += len(particles['pos'])
+        
+        # Combine all positions
+        if len(all_positions) > 0:
+            dmo_positions = np.vstack(all_positions)
+        else:
+            print("No particles found in halos")
+            return None
+        
+        # Get displaced positions
+        bcm_positions = self.apply_displacement()
+        if bcm_positions is None:
+            print("Error: Could not apply displacement")
+            return None
+        
+        k_dmo, Pk_dmo, k_bcm, Pk_bcm = ut.compare_power_spectra(dmo_positions, bcm_positions, self.boxsize, output_file)
+        
+        return k_dmo, Pk_dmo, k_bcm, Pk_bcm
+    
+    def calc_power_spectrum(self):
+        """
+        Calculate the power spectrum of the components.
+        """
+        particles_dict = self.get_halo_particles()
+        if particles_dict is None:
+            print("Error: Could not get halo particles")
+            return None
+        
+        # Extract just the position arrays from the dictionaries
+        dmo_positions = particles_dict['pos']
+        
+        # Get displaced positions
+
+        k, Pk = ut.calc_power_spectrum(dmo_positions, self.boxsize)
+        
+        ut.plot_power_spectrum(k, Pk)
+    
 if __name__ == "__main__":
     test = CAMELSReader(path_group = 'BCM/tests/Data/groups_014_dm.hdf5',path_snapshot = 'BCM/tests/#Data/snapshot_014_dm.hdf5',index=11)
-    test.init_calculations(M200=1e14, r200=0.77, c=None, h=0.6777, z=0, 
+    test.init_calculations(M200=1e14, r200=0.77, c=3.2, h=0.6777, z=0, 
                  Omega_m=0.3071, f=None, verbose=False)
-    print(test.components['disp'])
+    

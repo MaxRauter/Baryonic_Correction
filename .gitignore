@@ -12,9 +12,13 @@ __pycache__/
 *.npy
 *.csv
 *.fits
+*.png
 
 # Ignore test data
 BCM/tests/Data/
+
+# Ignore local runtest file
+bcm_runtest.py
 
 # Ignore OS files
 .DS_Store

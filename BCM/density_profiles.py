@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.integrate import quad
 from scipy.optimize import brentq
+from BCM.parameters import DEFAULTS
 
 # --------------------------------------------------------------------
 # Density Profiles
@@ -17,10 +18,10 @@ def rho_background(v,halo_masses):
     - v: volume of the Simulation
     - halo_masses: list of halo masses
     """
-    # rho_c = 2.775e11 h^2 M_sun / Mpc^3
-    # Omega_m = 0.3071
-    #return Rho_c * Omega_m - 1/v * np.sum(halo_masses)
-    return 1e11  # Placeholder for background density
+    rho_c = 2.775e11 #h^2 M_sun / Mpc^3
+    Omega_m = 0.3071
+    return rho_c * Omega_m 
+    #return 8.5e10  # Placeholder for background density
 
 def rho_nfw(r, r_s, rho0, r_tr, r_0=1e-10):
     """
@@ -37,41 +38,48 @@ def rho_nfw(r, r_s, rho0, r_tr, r_0=1e-10):
     - r_tr: truncation radius
     - r_0: minimum radius to avoid singularity (default: 1e-10)
     """
-    r = max(r, r_0)  # Ensure r is at least r_0 to avoid division by zero
+    r = np.maximum(r, r_0)  # Ensure r is at least r_0 to avoid division by zero
     x = r / r_s
     tau = r_tr / r_s  # Corrected - tau is r_tr/r_s
     return rho0 / ( x * (1 + x)**2 * (1 + (x/tau)**2)**2 )
 
 def mass_profile(r, density_func, **kwargs):
     """
-    Computes the enclosed mass M(r) by integrating 4π r^2 * density from 0 to r.
-    Uses a coordinate transformation for better numerical stability near r=0.
+    Computes the enclosed mass M(r) using Gauss-Legendre quadrature with log transform.
     """
-    # For an NFW profile, consider using the analytical solution if available
-    if density_func == rho_nfw and 'r_tr' in kwargs and kwargs['r_tr'] > 10*kwargs['r_s']:
-        # If truncation radius is far enough, use analytical approximation
+    # For NFW with r_tr >> r_s, use analytical solution
+    if density_func == rho_nfw and 'r_tr' in kwargs and kwargs['r_tr'] > 5*kwargs['r_s']:
         r_s = kwargs['r_s']
         rho0 = kwargs['rho0']
         x = r / r_s
         return 4 * np.pi * rho0 * r_s**3 * (np.log(1 + x) - x/(1 + x))
     
-    # For other profiles or truncated NFW, use transformed integration
-    # Use logarithmic coordinate transformation: s = ln(r) → dr = r ds
-    r_min = 1e-5  # Increased minimum radius
+    r_min = 1e-8  # Lower minimum radius to capture more central mass
     
-    def transformed_integrand(s):
-        # Convert from ln(r) to r
-        radius = np.exp(s)
-        # Include the Jacobian of the transformation
-        return 4 * np.pi * radius**3 * density_func(radius, **kwargs)
+    # Use Gauss-Legendre quadrature with log transformation
+    from scipy import special
     
-    # Integrate in transformed coordinates
+    # Get Gauss-Legendre points and weights
+    n_points = 48  # Higher number of points for better accuracy
+    x, w = special.roots_legendre(n_points)
+    
+    # Transform to log space from r_min to r
     s_min = np.log(r_min)
     s_max = np.log(r)
-    M, err = quad(transformed_integrand, s_min, s_max, 
-                  limit=2000, epsabs=1e-7, epsrel=1e-7)
+    s = 0.5 * (s_max - s_min) * x + 0.5 * (s_max + s_min)
+    radius = np.exp(s)
+    
+    # Calculate integrand at each point
+    integrand = 4 * np.pi * radius**3 * np.array([density_func(r_i, **kwargs) for r_i in radius])
+    
+    # Apply weights and sum
+    M = 0.5 * (s_max - s_min) * np.sum(w * integrand)
     
     return M
+
+def mass_nfw_analytical(r, r_s, rho0):
+    x = r/r_s
+    return 4*np.pi*rho0*r_s**3*(np.log(1+x) - x/(1+x))
 
 def calculate_total_mass(r_vals, rho_bcm):
     """
@@ -110,6 +118,7 @@ def y_bgas(r, r_s, r200, y0, c, rho0, r_tr):
     scale_factor = outer_at_trans / inner_at_trans
     #print(f"Scale factor: {scale_factor}")
     inner_scaled = inner_val * scale_factor
+    outer_scaled = outer_val / scale_factor
     
     return np.where(r <= r_transition, inner_scaled, outer_val)
 
@@ -141,8 +150,8 @@ def y_cgal(r, M_tot, R_h):
 def y_rdm_ac(r, r_s, rho0, r_tr, norm = 1.0,
              a=0.68,                # contraction strength
              f_cdm=0.839,             # CDM fraction of total mass
-             baryon_components=None # list of (r_array, y_vals) tuples
-            ):
+             baryon_components=None, # list of (r_array, y_vals) tuples
+            verbose=False):
     """
     Adiabatically contracted DM profile with radius-dependent xi.
 
@@ -166,18 +175,21 @@ def y_rdm_ac(r, r_s, rho0, r_tr, norm = 1.0,
             for r_array, rho_array in baryon_components:
                 baryon_mass = ut.cumul_mass_single(rf, rho_array, r_array)
                 M_b_rf += baryon_mass
-        M_dm_initial_rf = mass_profile(rf, rho_nfw, r_s=r_s, rho0=rho0, r_tr=r_tr) # Note: Using analytical NFW mass here
+        #M_dm_initial_rf = mass_profile(rf, rho_nfw, r_s=r_s, rho0=rho0, r_tr=r_tr)
         
         def G(ri):
             # mass before contraction (2.16)
             M_i_ri = mass_profile(ri, rho_nfw, r_s=r_s, rho0=rho0, r_tr=r_tr)
-            
+            #f_cdm = DEFAULTS['f_cdm']
+            f_cdm = M_i_ri / (M_i_ri + M_b_rf)  # CDM fraction of total mass
             # mass after contraction (2.16)
-            M_f_rf = M_i_ri + M_b_rf * (1.0 - f_cdm)  # Total mass after contraction
+            M_f_rf = M_i_ri * f_cdm + M_b_rf  # Total mass after contraction
+            #M_f_rf = M_dm_initial_rf + M_b_rf
             # Use a modified scaling that ensures some minimum contraction
-            a_min = 0.1 * a  # Minimum level of contraction (10% of normal)
-            scale_radius = 0.2 * r_s 
-            a_new = a_min + (a - a_min) * (1.0 - np.exp(-rf/scale_radius))
+            #a_min = 0.1 * a  # Minimum level of contraction (10% of normal)
+            #scale_radius = 0.2 * r_s 
+            #a_new = a_min + (a - a_min) * (1.0 - np.exp(-rf/scale_radius))
+            
             a_new = a # set to a fixed value as Schneider
             
             # Avoid division by zero or negative mass
@@ -191,7 +203,7 @@ def y_rdm_ac(r, r_s, rho0, r_tr, norm = 1.0,
 
         # bracket ri between a tiny inner radius and rf
         ri_min = max(rf*1e-5, 1e-8)  # Avoid division by zero
-        ri_max = max(rf*1e4, r_tr*1.5)    # Don't go beyond truncation radius
+        ri_max = max(rf*1e4, r_tr*1.5)    # Don't go beyond truncation radius 
         
         try:
             g_min = G(ri_min)
@@ -253,15 +265,19 @@ def y_rdm_ac(r, r_s, rho0, r_tr, norm = 1.0,
     xi_vals = np.zeros_like(r)
     for i, rf in enumerate(r):
         xi = xi_of_r(rf)
+        xi = 1 if xi > 1 else xi
+        diff = 1 - xi 
+        #xi = 1 - diff/2
         xi_vals[i] = xi
         ri = rf/xi
         out[i] = norm * xi**(-3) * rho_nfw(ri, r_s, rho0, r_tr)
-        
-    print(f"xi_vals: {xi_vals[:10]}")
-        
+    if verbose:  
+        print(f"xi_vals: {xi_vals[:10]}")
+        idx_almost_one = np.argmax(np.isclose(xi_vals, 1.0, atol=1e-3))
+        print(f"First xi ~ 1 at index: {idx_almost_one} and r = {r[idx_almost_one]}")
     return out
 
-def y_rdm_ac2(r, r_s, rho0, r_tr, M_i, M_f, norm = 1.0,
+def y_rdm_ac2(r, r_s, rho0, r_tr, M_i, M_f,verbose, norm = 1.0,
              a=0.68,                # contraction strength
              f_cdm=0.839,             # CDM fraction of total mass
             ):
@@ -304,8 +320,40 @@ def y_rdm_ac2(r, r_s, rho0, r_tr, M_i, M_f, norm = 1.0,
         xi_vals[i] = xi
         ri = rf/xi
         out[i] = norm * xi**(-3) * rho_nfw(ri, r_s, rho0, r_tr)
-        
-    print(f"xi_vals2: {xi_vals[:10]}")
-        
+    if verbose:
+        print(f"xi_vals2: {xi_vals[:10]}")
+        idx_almost_one = np.argmax(np.isclose(xi_vals, 1.0, atol=1e-3))
+        print(f"First xi ~ 1 at index: {idx_almost_one} and r = {r[idx_almost_one]}")
     return out
 
+def y_rdm_fixed_xi(r, r_s, rho0, r_tr, xi=0.85, norm=1.0,
+             a=0.68,                # contraction strength
+             f_cdm=0.839,             # CDM fraction of total mass
+             baryon_components=None # list of (r_array, y_vals) tuples
+            ):
+    """
+    Adiabatically contracted DM profile with a fixed xi value for all radii.
+
+    Parameters:
+        r (float or array): Radius or array of radii.
+        r_s (float): Scale radius.
+        rho0 (float): Normalization factor.
+        r_tr (float): Truncation radius.
+        xi (float): Fixed contraction parameter.
+        norm (float): Normalization factor.
+
+    Returns:
+        float or array: Contracted DM density profile.
+    """
+    limit = 0.04
+    inner_xi = 0.65
+    if r < limit:
+        # Interpolate xi nonlinearly: slow near limit, faster near 0 (e.g., quadratic)
+        xi_interp = 1 - ((1 - inner_xi)) * ((1 - r / limit))
+        xi = np.clip(xi_interp, inner_xi, 1.0)
+        print(f"xi: {xi} for r: {r}")
+    else:
+        xi = 1
+    ri = r / xi
+    #print(f"xi: {xi}")
+    return norm * xi**(-3) * rho_nfw(ri, r_s, rho0, r_tr)
