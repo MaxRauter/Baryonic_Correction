@@ -1,0 +1,451 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simulations &mdash; Baryonic Correction Model</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/custom.css" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=a264681e"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Utility Functions" href="utils.html" />
+    <link rel="prev" title="Density Profiles" href="density_profiles.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Baryonic_Correction_Model
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage.html">Usage</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">API Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="abundance_fractions.html">Abundance Fractions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="density_profiles.html">Density Profiles</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Simulations</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#camelsreader">CAMELSReader</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#main-methods">Main Methods</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#example-usage">Example Usage</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="utils.html">Utility Functions</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Baryonic_Correction_Model</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">API Reference</a></li>
+      <li class="breadcrumb-item active">Simulations</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/simulations.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="simulations">
+<h1>Simulations<a class="headerlink" href="#simulations" title="Link to this heading"></a></h1>
+<p>The <code class="docutils literal notranslate"><span class="pre">simulations</span></code> module provides the core functionality for applying the Baryonic Correction Model to cosmological simulations. It contains classes for reading simulation data, calculating density profiles, and applying displacement fields.</p>
+<section id="camelsreader">
+<h2>CAMELSReader<a class="headerlink" href="#camelsreader" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">BCM.simulations.</span></span><span class="sig-name descname"><span class="pre">CAMELSReader</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path_group</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path_snapshot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">index</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/simulations.html#CAMELSReader"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd><p>A class for reading and handling CAMELS simulation data.
+Stores important parameters from the simulations.</p>
+<dl class="py method">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path_group</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path_snapshot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">index</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/simulations.html#CAMELSReader.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd><p>Initialize the CAMELSReader with optional paths to group and snapshot data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path_group</strong> (<em>str</em><em>, </em><em>optional</em>) – Path to the directory containing the group (halo) data.</p></li>
+<li><p><strong>path_snapshot</strong> (<em>str</em><em>, </em><em>optional</em>) – Path to the directory containing the snapshot (simulation) data.</p></li>
+<li><p><strong>index</strong> (<em>int</em><em>, </em><em>optional</em>) – Index of the simulation or snapshot to load.</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em><em>, </em><em>default False</em>) – If True, enables verbose output during data loading.</p></li>
+</ul>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>If <cite>path_group</cite> is provided, halo data will be loaded automatically.
+If <cite>path_snapshot</cite> is provided, simulation and particle data will be loaded automatically.</p>
+</dd></dl>
+
+</dd></dl>
+
+<section id="main-methods">
+<h3>Main Methods<a class="headerlink" href="#main-methods" title="Link to this heading"></a></h3>
+<p><strong>Initialization and Setup</strong></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="BCM.simulations.CAMELSReader.init_calculations">
+<span class="sig-prename descclassname"><span class="pre">CAMELSReader.</span></span><span class="sig-name descname"><span class="pre">init_calculations</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">M200</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r200</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">c</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">h</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Omega_m</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">f</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/simulations.html#CAMELSReader.init_calculations"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#BCM.simulations.CAMELSReader.init_calculations" title="Link to this definition"></a></dt>
+<dd><p>Initialize the Baryonic Correction Model for a given halo.</p>
+<p>This method sets up all the required parameters for the BCM calculation,
+either using values provided as arguments or taken from the loaded halo data.
+After initialization, the calculation is automatically performed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>M200</strong> (<em>float</em><em>, </em><em>optional</em>) – Halo mass in Msun/h. If None and self.index is set, uses the value from loaded halo data.</p></li>
+<li><p><strong>r200</strong> (<em>float</em><em>, </em><em>optional</em>) – Halo radius in Mpc/h. If None and self.index is set, uses the value from loaded halo data.</p></li>
+<li><p><strong>c</strong> (<em>float</em><em>, </em><em>optional</em>) – Concentration parameter of the halo. If None, calculated based on M200 and redshift.</p></li>
+<li><p><strong>h</strong> (<em>float</em><em>, </em><em>optional</em>) – Hubble parameter. If None, uses the value from loaded simulation data.</p></li>
+<li><p><strong>z</strong> (<em>float</em><em>, </em><em>optional</em>) – Redshift. If None, uses the value from loaded simulation data.</p></li>
+<li><p><strong>Omega_m</strong> (<em>float</em><em>, </em><em>optional</em>) – Matter density parameter. If None, uses the value from loaded simulation data.</p></li>
+<li><p><strong>f</strong> (<em>list</em><em>, </em><em>dict</em><em>, or </em><em>None</em><em>, </em><em>optional</em>) – Abundance fractions specification. Can be either:
+- A list of fractions [f_rdm, f_bgas, f_cgal, f_egas]
+- A dictionary with keys ‘f_rdm’, ‘f_bgas’, ‘f_cgal’, ‘f_egas’
+- None to calculate fractions based on mass and redshift</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em><em>, </em><em>default False</em>) – Whether to print detailed information during the calculation process.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>self</strong> – Returns self for method chaining.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>CAMELSReader</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>This method automatically calls the calculate() method after initialization.
+The abundance fractions must sum to 1.0 with a tolerance of 1e-6.</p>
+</dd></dl>
+
+<p><strong>Profile Calculation</strong></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="BCM.simulations.CAMELSReader.calculate">
+<span class="sig-prename descclassname"><span class="pre">CAMELSReader.</span></span><span class="sig-name descname"><span class="pre">calculate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">r_min</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r_max</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_points</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/simulations.html#CAMELSReader.calculate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#BCM.simulations.CAMELSReader.calculate" title="Link to this definition"></a></dt>
+<dd><p>Calculate all BCM profiles and properties.</p>
+<p>This method performs the complete BCM calculation, computing density
+profiles, mass profiles, and displacement fields.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>r_min</strong> (<em>float</em><em>, </em><em>default 0.001</em>) – Minimum radius in Mpc/h for calculations.</p></li>
+<li><p><strong>r_max</strong> (<em>float</em><em>, </em><em>optional</em>) – Maximum radius in Mpc/h. If None, uses 10000 times r200.</p></li>
+<li><p><strong>n_points</strong> (<em>int</em><em>, </em><em>default 1000</em>) – Number of radius points for calculations.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>self</strong> – Returns self for method chaining.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>CAMELSReader</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>Results are stored in the components dictionary attribute.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="BCM.simulations.CAMELSReader._compute_density_profiles">
+<span class="sig-prename descclassname"><span class="pre">CAMELSReader.</span></span><span class="sig-name descname"><span class="pre">_compute_density_profiles</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">norm_bgas</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">norm_egas</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">norm_cgal</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">norm_rdm_fixed_xi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">M_nfw</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/simulations.html#CAMELSReader._compute_density_profiles"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#BCM.simulations.CAMELSReader._compute_density_profiles" title="Link to this definition"></a></dt>
+<dd><p>Compute density profiles for all components.</p>
+<p>This method calculates the density profiles for each BCM component
+using the provided normalization constants.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>norm_bgas</strong> (<em>float</em>) – Normalization constant for baryonic gas.</p></li>
+<li><p><strong>norm_egas</strong> (<em>float</em>) – Normalization constant for ejected gas.</p></li>
+<li><p><strong>norm_cgal</strong> (<em>float</em>) – Normalization constant for central galaxy.</p></li>
+<li><p><strong>norm_rdm_fixed_xi</strong> (<em>float</em>) – Normalization constant for remaining dark matter.</p></li>
+<li><p><strong>M_nfw</strong> (<em>numpy.ndarray</em>) – Cumulative mass profile of the NFW halo.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>All density profiles: (rho_dmo, rho_nfw, rho_bkg, y_bgas, y_egas, y_cgal, y_rdm, rho_bcm).</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>Also sets the class attribute profiles with all calculated profiles.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="BCM.simulations.CAMELSReader._compute_mass_profiles">
+<span class="sig-prename descclassname"><span class="pre">CAMELSReader.</span></span><span class="sig-name descname"><span class="pre">_compute_mass_profiles</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rho_dmo_vals</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rho_bkg_vals</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_rdm_vals</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_bgas_vals</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_egas_vals</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_cgal_vals</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rho_bcm</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">M_nfw</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/simulations.html#CAMELSReader._compute_mass_profiles"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#BCM.simulations.CAMELSReader._compute_mass_profiles" title="Link to this definition"></a></dt>
+<dd><p>Compute cumulative mass profiles for all components.</p>
+<p>This method integrates the density profiles to obtain the enclosed
+mass as a function of radius for each component.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>rho_dmo_vals</strong> (<em>numpy.ndarray</em>) – DMO density profile.</p></li>
+<li><p><strong>rho_bkg_vals</strong> (<em>numpy.ndarray</em>) – Background density profile.</p></li>
+<li><p><strong>y_rdm_vals</strong> (<em>numpy.ndarray</em>) – Remaining dark matter density profile.</p></li>
+<li><p><strong>y_bgas_vals</strong> (<em>numpy.ndarray</em>) – Baryonic gas density profile.</p></li>
+<li><p><strong>y_egas_vals</strong> (<em>numpy.ndarray</em>) – Ejected gas density profile.</p></li>
+<li><p><strong>y_cgal_vals</strong> (<em>numpy.ndarray</em>) – Central galaxy density profile.</p></li>
+<li><p><strong>rho_bcm</strong> (<em>numpy.ndarray</em>) – Total BCM density profile.</p></li>
+<li><p><strong>M_nfw</strong> (<em>numpy.ndarray</em>) – Cumulative NFW mass profile.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>All mass profiles: (M_dmo, M_bkg, M_rdm, M_bgas, M_egas, M_cgal, M_bcm).</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>Also sets the class attribute masses with all calculated mass profiles.
+Calls _check_masses to validate the results and _print_masses_at_infinity
+if verbose is True.</p>
+</dd></dl>
+
+<p><strong>Particle Manipulation</strong></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="BCM.simulations.CAMELSReader.apply_displacement">
+<span class="sig-prename descclassname"><span class="pre">CAMELSReader.</span></span><span class="sig-name descname"><span class="pre">apply_displacement</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">particles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/simulations.html#CAMELSReader.apply_displacement"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#BCM.simulations.CAMELSReader.apply_displacement" title="Link to this definition"></a></dt>
+<dd><p>Apply calculated displacements to particles.</p>
+<p>This method moves particles according to the displacement field
+calculated by the BCM to transform the DMO density into the BCM density.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>particles</strong> (<em>list</em><em> or </em><em>dict</em><em>, </em><em>optional</em>) – Particle data to use. If None, uses self.particles.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Array of new particle positions. None if there’s an error.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>numpy.ndarray or None</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ValueError</strong> – If the radius array hasn’t been created yet.</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>Particles are displaced radially, preserving their angular positions.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="BCM.simulations.CAMELSReader.get_halo_particles">
+<span class="sig-prename descclassname"><span class="pre">CAMELSReader.</span></span><span class="sig-name descname"><span class="pre">get_halo_particles</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/simulations.html#CAMELSReader.get_halo_particles"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#BCM.simulations.CAMELSReader.get_halo_particles" title="Link to this definition"></a></dt>
+<dd><p>Retrieve particle data for a specific halo.</p>
+<p>This method loads position, velocity, and ID information for particles
+belonging to the specified halo. If no index is provided, all particles
+are retrieved.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>index</strong> (<em>int</em><em>, </em><em>optional</em>) – The index of the halo for which to retrieve particles. If None,
+all particles from the snapshot are returned.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A dictionary containing particle data with the following keys:
+- ‘pos’: positions of particles in Mpc/h
+- ‘vel’: velocities of particles in appropriate units
+- ‘id’: particle IDs
+Returns None if the file does not exist or if there’s an error loading the data.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict or None</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>The particle data is also stored in the <cite>self.particles</cite> attribute.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="BCM.simulations.CAMELSReader.get_particles_relative_position">
+<span class="sig-prename descclassname"><span class="pre">CAMELSReader.</span></span><span class="sig-name descname"><span class="pre">get_particles_relative_position</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/simulations.html#CAMELSReader.get_particles_relative_position"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#BCM.simulations.CAMELSReader.get_particles_relative_position" title="Link to this definition"></a></dt>
+<dd><p>Get particle positions relative to their halo center.</p>
+<p>This method calculates the position of particles relative to the center
+of the halo they belong to.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>index</strong> (<em>int</em><em>, </em><em>optional</em>) – The index of the halo for which to calculate relative positions.
+If None, relative positions are calculated for all halos.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>If <cite>index</cite> is provided, returns a numpy array of shape (N, 3) containing
+the positions of N particles relative to the halo center.
+If <cite>index</cite> is None, returns a dictionary mapping halo indices to their
+relative particle positions.
+Returns None if there’s an error processing the data.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>numpy.ndarray or dict</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>For multiple halos, this function produces verbose output about the
+processing progress and results.</p>
+</dd></dl>
+
+<p><strong>Visualization and Analysis</strong></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="BCM.simulations.CAMELSReader.plot_density_profiles">
+<span class="sig-prename descclassname"><span class="pre">CAMELSReader.</span></span><span class="sig-name descname"><span class="pre">plot_density_profiles</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/simulations.html#CAMELSReader.plot_density_profiles"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#BCM.simulations.CAMELSReader.plot_density_profiles" title="Link to this definition"></a></dt>
+<dd><p>Plot the density profiles of all components.</p>
+<p>This method creates a log-log plot showing the density profiles
+of all BCM components and the DMO profile for comparison.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>ValueError</strong> – If the radius array hasn’t been created yet.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="BCM.simulations.CAMELSReader.plot_displacement">
+<span class="sig-prename descclassname"><span class="pre">CAMELSReader.</span></span><span class="sig-name descname"><span class="pre">plot_displacement</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/simulations.html#CAMELSReader.plot_displacement"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#BCM.simulations.CAMELSReader.plot_displacement" title="Link to this definition"></a></dt>
+<dd><p>Plot the displacement field.</p>
+<p>This method creates a semi-log plot showing how particle displacement
+varies with radius.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>ValueError</strong> – If the radius array hasn’t been created yet.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="BCM.simulations.CAMELSReader.calc_displ_and_compare_powerspectrum">
+<span class="sig-prename descclassname"><span class="pre">CAMELSReader.</span></span><span class="sig-name descname"><span class="pre">calc_displ_and_compare_powerspectrum</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/simulations.html#CAMELSReader.calc_displ_and_compare_powerspectrum"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#BCM.simulations.CAMELSReader.calc_displ_and_compare_powerspectrum" title="Link to this definition"></a></dt>
+<dd><p>Calculate power spectra for DMO and BCM particle distributions.</p>
+<p>This method computes the displacement field, applies it to particles,
+and calculates power spectra for both the original and displaced particles.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>output_file</strong> (<em>str</em><em>, </em><em>optional</em>) – If provided, results will be saved to this file.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>(k_dmo, Pk_dmo, k_bcm, Pk_bcm) - wavenumbers and power spectra.
+None if there’s an error in processing.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="BCM.simulations.CAMELSReader.print_components">
+<span class="sig-prename descclassname"><span class="pre">CAMELSReader.</span></span><span class="sig-name descname"><span class="pre">print_components</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">r</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/simulations.html#CAMELSReader.print_components"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#BCM.simulations.CAMELSReader.print_components" title="Link to this definition"></a></dt>
+<dd><p>Print all component values at a specific radius.</p>
+<p>This method displays the density values of all components at the
+specified radius, along with key halo parameters.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>r</strong> (<em>float</em><em>, </em><em>optional</em>) – Radius in Mpc/h. If None, uses the maximum calculated radius.</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ValueError</strong> – If the radius array hasn’t been created yet or if the specified
+    radius is out of bounds.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+<section id="example-usage">
+<h2>Example Usage<a class="headerlink" href="#example-usage" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Initialize a CAMELS simulation reader</span>
+<span class="n">reader</span> <span class="o">=</span> <span class="n">simulations</span><span class="o">.</span><span class="n">CAMELSReader</span><span class="p">(</span>
+    <span class="n">path_group</span><span class="o">=</span><span class="s2">&quot;path/to/groups/file.hdf5&quot;</span><span class="p">,</span>
+    <span class="n">path_snapshot</span><span class="o">=</span><span class="s2">&quot;path/to/snapshot/file.hdf5&quot;</span>
+<span class="p">)</span>
+
+<span class="c1"># Initialize the BCM calculation with halo parameters</span>
+<span class="n">reader</span><span class="o">.</span><span class="n">init_calculations</span><span class="p">(</span>
+    <span class="n">M200</span><span class="o">=</span><span class="mf">1e14</span><span class="p">,</span>      <span class="c1"># Halo mass (M☉)</span>
+    <span class="n">r200</span><span class="o">=</span><span class="mf">0.77</span><span class="p">,</span>      <span class="c1"># Virial radius (Mpc/h)</span>
+    <span class="n">c</span><span class="o">=</span><span class="mf">3.2</span><span class="p">,</span>          <span class="c1"># Concentration parameter</span>
+    <span class="n">h</span><span class="o">=</span><span class="mf">0.6777</span><span class="p">,</span>       <span class="c1"># Hubble parameter</span>
+    <span class="n">z</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>            <span class="c1"># Redshift</span>
+    <span class="n">Omega_m</span><span class="o">=</span><span class="mf">0.3071</span><span class="p">,</span> <span class="c1"># Matter density parameter</span>
+    <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span>    <span class="c1"># Show detailed output</span>
+<span class="p">)</span>
+
+<span class="c1"># Calculate BCM profiles</span>
+<span class="n">reader</span><span class="o">.</span><span class="n">calculate</span><span class="p">()</span>
+
+<span class="c1"># Apply displacement to particles and compare power spectra</span>
+<span class="n">reader</span><span class="o">.</span><span class="n">calc_displ_and_compare_powerspectrum</span><span class="p">(</span><span class="n">output_file</span><span class="o">=</span><span class="s1">&#39;powerspectrum.png&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="density_profiles.html" class="btn btn-neutral float-left" title="Density Profiles" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="utils.html" class="btn btn-neutral float-right" title="Utility Functions" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Max Rauter.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

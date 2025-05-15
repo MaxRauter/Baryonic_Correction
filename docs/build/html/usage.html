@@ -1,0 +1,188 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Usage &mdash; Baryonic Correction Model</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/custom.css" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=a264681e"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="API Reference" href="api/index.html" />
+    <link rel="prev" title="Installation" href="installation.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Baryonic_Correction_Model
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#basic-usage">Basic Usage</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#loading-simulation-data">Loading Simulation Data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#initializing-the-bcm-model">Initializing the BCM Model</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#view-resulting-displacements">View resulting displacements:</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#running-verification-tests">Running Verification Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#example-workflow">Example Workflow</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api/index.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Baryonic_Correction_Model</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Usage</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/usage.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="usage">
+<h1>Usage<a class="headerlink" href="#usage" title="Link to this heading"></a></h1>
+<section id="basic-usage">
+<h2>Basic Usage<a class="headerlink" href="#basic-usage" title="Link to this heading"></a></h2>
+<p>The Baryonic Correction Model provides tools to correct dark matter-only simulations by accounting for baryonic effects. Here’s how to use the basic functionality:</p>
+<section id="loading-simulation-data">
+<h3>Loading Simulation Data<a class="headerlink" href="#loading-simulation-data" title="Link to this heading"></a></h3>
+<p>First, load your simulation data:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">BCM</span> <span class="kn">import</span> <span class="n">simulations</span>
+
+<span class="c1"># Initialize with paths to your simulation files</span>
+<span class="n">reader</span> <span class="o">=</span> <span class="n">simulations</span><span class="o">.</span><span class="n">CAMELSReader</span><span class="p">(</span>
+    <span class="n">path_group</span><span class="o">=</span><span class="s2">&quot;path/to/groups/file.hdf5&quot;</span><span class="p">,</span>
+    <span class="n">path_snapshot</span><span class="o">=</span><span class="s2">&quot;path/to/snapshot/file.hdf5&quot;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="initializing-the-bcm-model">
+<h3>Initializing the BCM Model<a class="headerlink" href="#initializing-the-bcm-model" title="Link to this heading"></a></h3>
+<p>Next, initialize the BCM model and start the calculations:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Set up BCM calculations</span>
+<span class="n">reader</span><span class="o">.</span><span class="n">init_calculations</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+<section id="view-resulting-displacements">
+<h3>View resulting displacements:<a class="headerlink" href="#view-resulting-displacements" title="Link to this heading"></a></h3>
+<p>Get the displaced vs original power spectrum:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Calculate and plot power spectrum</span>
+<span class="n">reader</span><span class="o">.</span><span class="n">calc_displ_and_compare_powerspectrum</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+<section id="running-verification-tests">
+<h3>Running Verification Tests<a class="headerlink" href="#running-verification-tests" title="Link to this heading"></a></h3>
+<p>To verify your implementation against reference cases:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">BCM</span> <span class="kn">import</span> <span class="n">utils</span>
+
+<span class="c1"># Run verification against Schneider et al. 2015</span>
+<span class="n">utils</span><span class="o">.</span><span class="n">verify_schneider</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="example-workflow">
+<h2>Example Workflow<a class="headerlink" href="#example-workflow" title="Link to this heading"></a></h2>
+<p>Here’s a complete example workflow:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">from</span> <span class="nn">BCM</span> <span class="kn">import</span> <span class="n">simulations</span><span class="p">,</span> <span class="n">utils</span>
+
+<span class="c1"># Initialize reader</span>
+<span class="n">reader</span> <span class="o">=</span> <span class="n">simulations</span><span class="o">.</span><span class="n">CAMELSReader</span><span class="p">(</span>
+    <span class="n">path_group</span><span class="o">=</span><span class="s2">&quot;simulation/groups/fof_subhalo_tab_033.hdf5&quot;</span><span class="p">,</span>
+    <span class="n">path_snapshot</span><span class="o">=</span><span class="s2">&quot;simulation/snapshots/snap_033.hdf5&quot;</span>
+<span class="p">)</span>
+
+<span class="c1"># Setup BCM</span>
+<span class="n">reader</span><span class="o">.</span><span class="n">init_calculations</span><span class="p">()</span>
+
+<span class="c1"># Apply displacement and calculate power spectrum</span>
+<span class="n">reader</span><span class="o">.</span><span class="n">calc_displ_and_compare_powerspectrum</span><span class="p">(</span><span class="n">output_file</span><span class="o">=</span><span class="s1">&#39;power_spectrum.png&#39;</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Analysis complete. Check power_spectrum.png&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="installation.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="api/index.html" class="btn btn-neutral float-right" title="API Reference" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Max Rauter.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,507 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Density Profiles &mdash; Baryonic Correction Model</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/custom.css" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=a264681e"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Simulations" href="simulations.html" />
+    <link rel="prev" title="Abundance Fractions" href="abundance_fractions.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Baryonic_Correction_Model
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage.html">Usage</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">API Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="abundance_fractions.html">Abundance Fractions</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Density Profiles</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#functions">Functions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#nfw-profile">NFW Profile</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#background-density">Background Density</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#baryonic-components">Baryonic Components</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#dark-matter-components">Dark Matter Components</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#utility-functions">Utility Functions</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#examples">Examples</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#id1">NFW Profile</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#component-profiles">Component Profiles</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="simulations.html">Simulations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="utils.html">Utility Functions</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Baryonic_Correction_Model</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">API Reference</a></li>
+      <li class="breadcrumb-item active">Density Profiles</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/density_profiles.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="density-profiles">
+<h1>Density Profiles<a class="headerlink" href="#density-profiles" title="Link to this heading"></a></h1>
+<p id="module-BCM.density_profiles">The <code class="docutils literal notranslate"><span class="pre">density_profiles</span></code> module provides functions for calculating various density and mass profiles used in the Baryonic Correction Model (BCM). These profiles describe the distribution of different matter components in and around halos.</p>
+<section id="functions">
+<h2>Functions<a class="headerlink" href="#functions" title="Link to this heading"></a></h2>
+<section id="nfw-profile">
+<h3>NFW Profile<a class="headerlink" href="#nfw-profile" title="Link to this heading"></a></h3>
+<dl class="py function">
+<dt class="sig sig-object py" id="BCM.density_profiles.rho_nfw">
+<span class="sig-prename descclassname"><span class="pre">BCM.density_profiles.</span></span><span class="sig-name descname"><span class="pre">rho_nfw</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">r</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r_s</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rho0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r_tr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r_0</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-10</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/density_profiles.html#rho_nfw"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#BCM.density_profiles.rho_nfw" title="Link to this definition"></a></dt>
+<dd><p>Calculate the truncated NFW density profile.</p>
+<p>Implements the truncated NFW profile from Eq. 2.8:
+ρ_nfw(x, τ) = ρ0 / [x (1+x)^2 (1 + (x/τ)^2)^2]
+where x = r/r_s and τ = r_tr/r_s.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>r</strong> (<em>float</em><em> or </em><em>array_like</em>) – Radius in Mpc/h</p></li>
+<li><p><strong>r_s</strong> (<em>float</em>) – Scale radius in Mpc/h</p></li>
+<li><p><strong>rho0</strong> (<em>float</em>) – Characteristic density in Msun/h/(Mpc/h)^3</p></li>
+<li><p><strong>r_tr</strong> (<em>float</em>) – Truncation radius in Mpc/h</p></li>
+<li><p><strong>r_0</strong> (<em>float</em><em>, </em><em>optional</em>) – Minimum radius to avoid singularity, default 1e-10 Mpc/h</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>NFW density at the specified radius/radii in Msun/h/(Mpc/h)^3</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float or array_like</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>Best results are achieved with τ = r_tr/r_s = 8c (Schneider &amp; Teyssier 2016).</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="BCM.density_profiles.mass_nfw_analytical">
+<span class="sig-prename descclassname"><span class="pre">BCM.density_profiles.</span></span><span class="sig-name descname"><span class="pre">mass_nfw_analytical</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">r</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r_s</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rho0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/density_profiles.html#mass_nfw_analytical"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#BCM.density_profiles.mass_nfw_analytical" title="Link to this definition"></a></dt>
+<dd><p>Calculate the enclosed mass for an NFW profile using the analytical formula.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>r</strong> (<em>float</em>) – Radius within which to compute the enclosed mass, in Mpc/h</p></li>
+<li><p><strong>r_s</strong> (<em>float</em>) – Scale radius in Mpc/h</p></li>
+<li><p><strong>rho0</strong> (<em>float</em>) – Characteristic density in Msun/h/(Mpc/h)^3</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Enclosed mass in Msun/h</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>Uses the formula: M(r) = 4πρ0r_s³(ln(1+x) - x/(1+x)) where x = r/r_s
+This is valid for a standard (non-truncated) NFW profile.</p>
+</dd></dl>
+
+</section>
+<section id="background-density">
+<h3>Background Density<a class="headerlink" href="#background-density" title="Link to this heading"></a></h3>
+<dl class="py function">
+<dt class="sig sig-object py" id="BCM.density_profiles.rho_background">
+<span class="sig-prename descclassname"><span class="pre">BCM.density_profiles.</span></span><span class="sig-name descname"><span class="pre">rho_background</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">v</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">halo_masses</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/density_profiles.html#rho_background"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#BCM.density_profiles.rho_background" title="Link to this definition"></a></dt>
+<dd><p>Calculate the background density profile.</p>
+<p>This function computes the cosmic background density using the critical
+density and matter density parameter. The formula is given by Eq. 2.9:
+ρ_background(v) = ρ_c * Omega_m - (1/v) * Σ_i ρ_i
+where ρ_i is the density of each halo.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>v</strong> (<em>float</em>) – Volume of the simulation in (Mpc/h)^3</p></li>
+<li><p><strong>halo_masses</strong> (<em>array_like</em>) – List of halo masses in Msun/h</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Background density in Msun/h/(Mpc/h)^3</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>Currently uses fixed values for critical density and Omega_m.</p>
+</dd></dl>
+
+</section>
+<section id="baryonic-components">
+<h3>Baryonic Components<a class="headerlink" href="#baryonic-components" title="Link to this heading"></a></h3>
+<dl class="py function">
+<dt class="sig sig-object py" id="BCM.density_profiles.y_bgas">
+<span class="sig-prename descclassname"><span class="pre">BCM.density_profiles.</span></span><span class="sig-name descname"><span class="pre">y_bgas</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">r</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r_s</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r200</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">c</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rho0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r_tr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/density_profiles.html#y_bgas"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#BCM.density_profiles.y_bgas" title="Link to this definition"></a></dt>
+<dd><p>Calculate the baryonic gas density profile.</p>
+<p>This function implements a modified profile for baryonic gas that consists
+of an inner profile (power law) and an outer NFW profile, with a smooth
+transition between them at r200/√5.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>r</strong> (<em>float</em><em> or </em><em>array_like</em>) – Radius in Mpc/h</p></li>
+<li><p><strong>r_s</strong> (<em>float</em>) – Scale radius in Mpc/h</p></li>
+<li><p><strong>r200</strong> (<em>float</em>) – Virial radius in Mpc/h</p></li>
+<li><p><strong>y0</strong> (<em>float</em>) – Normalization parameter</p></li>
+<li><p><strong>c</strong> (<em>float</em>) – Concentration parameter (r200/r_s)</p></li>
+<li><p><strong>rho0</strong> (<em>float</em>) – Characteristic density in Msun/h/(Mpc/h)^3</p></li>
+<li><p><strong>r_tr</strong> (<em>float</em>) – Truncation radius in Mpc/h</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Baryonic gas density at the specified radius/radii in Msun/h/(Mpc/h)^3</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float or array_like</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>The inner profile is given by Eq. 2.10: y0 * (ln(1+x)/x)^Γ_eff
+The outer profile follows the NFW form.
+The transition radius is r200/√5.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="BCM.density_profiles.y_egas">
+<span class="sig-prename descclassname"><span class="pre">BCM.density_profiles.</span></span><span class="sig-name descname"><span class="pre">y_egas</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">r</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">M_tot</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r_ej</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/density_profiles.html#y_egas"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#BCM.density_profiles.y_egas" title="Link to this definition"></a></dt>
+<dd><p>Calculate the ejected gas density profile.</p>
+<p>This function implements the ejected gas profile as a 3D Gaussian
+distribution as described in Eq. 2.13:
+y_egas(r) = M_tot / ((2π r_ej²)^(3/2)) * exp[-r²/(2r_ej²)]</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>r</strong> (<em>float</em><em> or </em><em>array_like</em>) – Radius in Mpc/h</p></li>
+<li><p><strong>M_tot</strong> (<em>float</em>) – Total mass of the ejected gas component in Msun/h</p></li>
+<li><p><strong>r_ej</strong> (<em>float</em>) – Characteristic ejection radius in Mpc/h</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Ejected gas density at the specified radius/radii in Msun/h/(Mpc/h)^3</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float or array_like</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>This component represents gas that has been ejected from the halo due to
+feedback processes such as AGN activity and supernovae.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="BCM.density_profiles.y_cgal">
+<span class="sig-prename descclassname"><span class="pre">BCM.density_profiles.</span></span><span class="sig-name descname"><span class="pre">y_cgal</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">r</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">M_tot</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">R_h</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/density_profiles.html#y_cgal"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#BCM.density_profiles.y_cgal" title="Link to this definition"></a></dt>
+<dd><p>Calculate the central galaxy (stellar) density profile.</p>
+<p>This function implements the central galaxy profile based on observations,
+as described in Eq. 2.14:
+y_cgal(r) = M_tot / (4π^(3/2)R_h) * (1/r²) * exp[-(r/(2R_h))²]</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>r</strong> (<em>float</em><em> or </em><em>array_like</em>) – Radius in Mpc/h</p></li>
+<li><p><strong>M_tot</strong> (<em>float</em>) – Total stellar mass in Msun/h</p></li>
+<li><p><strong>R_h</strong> (<em>float</em>) – Characteristic radius (Hernquist scale radius) in Mpc/h</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Stellar density at the specified radius/radii in Msun/h/(Mpc/h)^3</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float or array_like</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>This profile is similar to a Hernquist profile but with a Gaussian cutoff
+to better match observed stellar distributions in galaxies.
+A small core radius is added to prevent division by zero at r=0.</p>
+</dd></dl>
+
+</section>
+<section id="dark-matter-components">
+<h3>Dark Matter Components<a class="headerlink" href="#dark-matter-components" title="Link to this heading"></a></h3>
+<dl class="py function">
+<dt class="sig sig-object py" id="BCM.density_profiles.y_rdm_fixed_xi">
+<span class="sig-prename descclassname"><span class="pre">BCM.density_profiles.</span></span><span class="sig-name descname"><span class="pre">y_rdm_fixed_xi</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">r</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r_s</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rho0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r_tr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xi</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.85</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">norm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">a</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.68</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">f_cdm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.839</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">baryon_components</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/density_profiles.html#y_rdm_fixed_xi"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#BCM.density_profiles.y_rdm_fixed_xi" title="Link to this definition"></a></dt>
+<dd><p>Calculate the dark matter profile with a fixed contraction parameter.</p>
+<p>This simplified version of the adiabatic contraction model uses a fixed
+contraction parameter ξ for all radii instead of solving for it separately
+at each radius.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>r</strong> (<em>float</em><em> or </em><em>array_like</em>) – Radius in Mpc/h</p></li>
+<li><p><strong>r_s</strong> (<em>float</em>) – Scale radius in Mpc/h</p></li>
+<li><p><strong>rho0</strong> (<em>float</em>) – Characteristic density in Msun/h/(Mpc/h)^3</p></li>
+<li><p><strong>r_tr</strong> (<em>float</em>) – Truncation radius in Mpc/h</p></li>
+<li><p><strong>xi</strong> (<em>float</em><em>, </em><em>optional</em>) – Fixed contraction parameter, default 0.85</p></li>
+<li><p><strong>norm</strong> (<em>float</em><em>, </em><em>optional</em>) – Normalization factor, default 1.0</p></li>
+<li><p><strong>a</strong> (<em>float</em><em>, </em><em>optional</em>) – Contraction strength parameter (not used in this function), default 0.68</p></li>
+<li><p><strong>f_cdm</strong> (<em>float</em><em>, </em><em>optional</em>) – CDM fraction of total mass (not used in this function), default 0.839</p></li>
+<li><p><strong>baryon_components</strong> (<em>list</em><em>, </em><em>optional</em>) – Baryon components (not used in this function)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Contracted dark matter density at the specified radius/radii in Msun/h/(Mpc/h)^3</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float or array_like</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>This simplified model provides a way to apply contraction without the
+computational expense of solving for ξ at each radius. This method uses
+radius-dependent contraction for r &lt; 0.04, transitioning to no contraction (ξ=1)
+for r ≥ 0.04.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="BCM.density_profiles.y_rdm_ac">
+<span class="sig-prename descclassname"><span class="pre">BCM.density_profiles.</span></span><span class="sig-name descname"><span class="pre">y_rdm_ac</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">r</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r_s</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rho0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r_tr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">norm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">a</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.68</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">f_cdm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.839</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">baryon_components</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/density_profiles.html#y_rdm_ac"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#BCM.density_profiles.y_rdm_ac" title="Link to this definition"></a></dt>
+<dd><p>Calculate the adiabatically contracted dark matter profile.</p>
+<p>This function implements the adiabatic contraction model where the contraction
+parameter ξ is computed for each radius by solving the equation:
+rf/ri - 1 = a * (M_i(ri)/M_f(rf) - 1)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>r</strong> (<em>float</em><em> or </em><em>array_like</em>) – Radius in Mpc/h</p></li>
+<li><p><strong>r_s</strong> (<em>float</em>) – Scale radius in Mpc/h</p></li>
+<li><p><strong>rho0</strong> (<em>float</em>) – Characteristic density in Msun/h/(Mpc/h)^3</p></li>
+<li><p><strong>r_tr</strong> (<em>float</em>) – Truncation radius in Mpc/h</p></li>
+<li><p><strong>norm</strong> (<em>float</em><em>, </em><em>optional</em>) – Normalization factor, default 1.0</p></li>
+<li><p><strong>a</strong> (<em>float</em><em>, </em><em>optional</em>) – Contraction strength parameter, default 0.68</p></li>
+<li><p><strong>f_cdm</strong> (<em>float</em><em>, </em><em>optional</em>) – CDM fraction of total mass, default 0.839</p></li>
+<li><p><strong>baryon_components</strong> (<em>list</em><em> of </em><em>tuple</em><em>, </em><em>optional</em>) – List of (r_array, y_vals) tuples representing baryon component profiles</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to print diagnostic information, default False</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Contracted dark matter density at the specified radius/radii in Msun/h/(Mpc/h)^3</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float or array_like</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>The contraction parameter ξ = rf/ri represents how much a shell of dark matter
+has been contracted due to the presence of baryons. The contracted density is
+computed as ρ(rf) = ξ^(-3) * ρ_nfw(ri).</p>
+<p>For each radius rf, this function numerically solves for the initial radius ri
+using the brentq root-finding algorithm. It includes extensive error handling
+to deal with cases where the equation has no solution.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="BCM.density_profiles.y_rdm_ac2">
+<span class="sig-prename descclassname"><span class="pre">BCM.density_profiles.</span></span><span class="sig-name descname"><span class="pre">y_rdm_ac2</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">r</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r_s</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rho0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r_tr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">M_i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">M_f</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">norm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">a</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.68</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">f_cdm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.839</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/density_profiles.html#y_rdm_ac2"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#BCM.density_profiles.y_rdm_ac2" title="Link to this definition"></a></dt>
+<dd><p>Calculate the adiabatically contracted dark matter profile using pre-computed mass profiles.</p>
+<p>This alternative implementation of adiabatic contraction uses pre-computed
+mass profiles M_i and M_f rather than calculating them on-the-fly.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>r</strong> (<em>array_like</em>) – Radius array in Mpc/h</p></li>
+<li><p><strong>r_s</strong> (<em>float</em>) – Scale radius in Mpc/h</p></li>
+<li><p><strong>rho0</strong> (<em>float</em>) – Characteristic density in Msun/h/(Mpc/h)^3</p></li>
+<li><p><strong>r_tr</strong> (<em>float</em>) – Truncation radius in Mpc/h</p></li>
+<li><p><strong>M_i</strong> (<em>array_like</em>) – Initial mass profile (before contraction) in Msun/h</p></li>
+<li><p><strong>M_f</strong> (<em>array_like</em>) – Final mass profile (after contraction) in Msun/h</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em>) – Whether to print diagnostic information</p></li>
+<li><p><strong>norm</strong> (<em>float</em><em>, </em><em>optional</em>) – Normalization factor, default 1.0</p></li>
+<li><p><strong>a</strong> (<em>float</em><em>, </em><em>optional</em>) – Contraction strength parameter, default 0.68</p></li>
+<li><p><strong>f_cdm</strong> (<em>float</em><em>, </em><em>optional</em>) – CDM fraction of total mass, default 0.839</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Contracted dark matter density at the specified radii in Msun/h/(Mpc/h)^3</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>array_like</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>This method interpolates the mass profiles to determine the contraction
+parameter ξ at each radius. It then applies the same contraction formula as
+y_rdm_ac but avoids recomputing the mass profiles at each step.</p>
+</dd></dl>
+
+</section>
+<section id="utility-functions">
+<h3>Utility Functions<a class="headerlink" href="#utility-functions" title="Link to this heading"></a></h3>
+<dl class="py function">
+<dt class="sig sig-object py" id="BCM.density_profiles.mass_profile">
+<span class="sig-prename descclassname"><span class="pre">BCM.density_profiles.</span></span><span class="sig-name descname"><span class="pre">mass_profile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">r</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">density_func</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/density_profiles.html#mass_profile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#BCM.density_profiles.mass_profile" title="Link to this definition"></a></dt>
+<dd><p>Compute the enclosed mass within radius r for a given density profile.</p>
+<p>This function uses Gauss-Legendre quadrature with log-space transformation
+to efficiently calculate the enclosed mass by integrating 4πr²ρ(r) from a
+small inner radius to r.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>r</strong> (<em>float</em>) – Radius within which to compute the enclosed mass, in Mpc/h</p></li>
+<li><p><strong>density_func</strong> (<em>callable</em>) – Function that returns the density at a given radius</p></li>
+<li><p><strong>**kwargs</strong> (<em>dict</em>) – Additional arguments to pass to the density function</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Enclosed mass in Msun/h</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>For NFW profiles with r_tr &gt;&gt; r_s, this function automatically uses the
+analytical solution for better accuracy and performance.</p>
+</dd></dl>
+
+</section>
+</section>
+<section id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Link to this heading"></a></h2>
+<section id="id1">
+<h3>NFW Profile<a class="headerlink" href="#id1" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">BCM</span> <span class="kn">import</span> <span class="n">density_profiles</span> <span class="k">as</span> <span class="n">dp</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="c1"># Define parameters</span>
+<span class="n">r_s</span> <span class="o">=</span> <span class="mf">0.1</span>  <span class="c1"># Scale radius in Mpc/h</span>
+<span class="n">rho0</span> <span class="o">=</span> <span class="mf">1e7</span>  <span class="c1"># Characteristic density in Msun/h/(Mpc/h)^3</span>
+<span class="n">r_tr</span> <span class="o">=</span> <span class="mf">1.0</span>  <span class="c1"># Truncation radius in Mpc/h</span>
+
+<span class="c1"># Create radius array</span>
+<span class="n">r_vals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logspace</span><span class="p">(</span><span class="o">-</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1000</span><span class="p">)</span>  <span class="c1"># from 0.001 to 10 Mpc/h</span>
+
+<span class="c1"># Calculate NFW density profile</span>
+<span class="n">rho_nfw_vals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">dp</span><span class="o">.</span><span class="n">rho_nfw</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">r_s</span><span class="p">,</span> <span class="n">rho0</span><span class="p">,</span> <span class="n">r_tr</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">r_vals</span><span class="p">])</span>
+
+<span class="c1"># Calculate analytical mass</span>
+<span class="n">r</span> <span class="o">=</span> <span class="mf">0.5</span>  <span class="c1"># Mpc/h</span>
+<span class="n">mass</span> <span class="o">=</span> <span class="n">dp</span><span class="o">.</span><span class="n">mass_nfw_analytical</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">r_s</span><span class="p">,</span> <span class="n">rho0</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Mass within </span><span class="si">{</span><span class="n">r</span><span class="si">}</span><span class="s2"> Mpc/h: </span><span class="si">{</span><span class="n">mass</span><span class="si">:</span><span class="s2">.2e</span><span class="si">}</span><span class="s2"> Msun/h&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="component-profiles">
+<h3>Component Profiles<a class="headerlink" href="#component-profiles" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">BCM</span> <span class="kn">import</span> <span class="n">density_profiles</span> <span class="k">as</span> <span class="n">dp</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="c1"># Define parameters</span>
+<span class="n">r_s</span> <span class="o">=</span> <span class="mf">0.1</span>  <span class="c1"># Scale radius in Mpc/h</span>
+<span class="n">r200</span> <span class="o">=</span> <span class="mf">0.5</span>  <span class="c1"># Virial radius in Mpc/h</span>
+<span class="n">r_ej</span> <span class="o">=</span> <span class="mf">2.0</span>  <span class="c1"># Ejection radius in Mpc/h</span>
+<span class="n">R_h</span> <span class="o">=</span> <span class="mf">0.01</span>  <span class="c1"># Hernquist scale radius in Mpc/h</span>
+<span class="n">rho0</span> <span class="o">=</span> <span class="mf">1e7</span>  <span class="c1"># Characteristic density in Msun/h/(Mpc/h)^3</span>
+<span class="n">r_tr</span> <span class="o">=</span> <span class="mf">4.0</span>  <span class="c1"># Truncation radius in Mpc/h</span>
+<span class="n">c</span> <span class="o">=</span> <span class="mf">5.0</span>  <span class="c1"># Concentration parameter</span>
+
+<span class="c1"># Create radius array</span>
+<span class="n">r_vals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logspace</span><span class="p">(</span><span class="o">-</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1000</span><span class="p">)</span>  <span class="c1"># from 0.001 to 10 Mpc/h</span>
+
+<span class="c1"># Normalizations (would normally be calculated in a real application)</span>
+<span class="n">norm_bgas</span> <span class="o">=</span> <span class="mf">0.5</span>
+<span class="n">norm_egas</span> <span class="o">=</span> <span class="mf">1.5e13</span>
+<span class="n">norm_cgal</span> <span class="o">=</span> <span class="mf">5e11</span>
+
+<span class="c1"># Calculate component profiles</span>
+<span class="n">bgas_vals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">dp</span><span class="o">.</span><span class="n">y_bgas</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">r_s</span><span class="p">,</span> <span class="n">r200</span><span class="p">,</span> <span class="n">norm_bgas</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">rho0</span><span class="p">,</span> <span class="n">r_tr</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">r_vals</span><span class="p">])</span>
+<span class="n">egas_vals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">dp</span><span class="o">.</span><span class="n">y_egas</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">norm_egas</span><span class="p">,</span> <span class="n">r_ej</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">r_vals</span><span class="p">])</span>
+<span class="n">cgal_vals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">dp</span><span class="o">.</span><span class="n">y_cgal</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">norm_cgal</span><span class="p">,</span> <span class="n">R_h</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">r_vals</span><span class="p">])</span>
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="abundance_fractions.html" class="btn btn-neutral float-left" title="Abundance Fractions" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="simulations.html" class="btn btn-neutral float-right" title="Simulations" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Max Rauter.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

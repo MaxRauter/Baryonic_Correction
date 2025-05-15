@@ -7,36 +7,64 @@ from BCM.parameters import DEFAULTS
 # Density Profiles
 # --------------------------------------------------------------------
 
-def rho_background(v,halo_masses):
+def rho_background(v, halo_masses):
     """
-    Background density profile (Eq. 2.9).
+    Calculate the background density profile.
+    
+    This function computes the cosmic background density using the critical 
+    density and matter density parameter. The formula is given by Eq. 2.9:
     ρ_background(v) = ρ_c * Omega_m - (1/v) * Σ_i ρ_i
     where ρ_i is the density of each halo.
-    This function computes the background density for a given halo mass.
     
-    Parameters:
-    - v: volume of the Simulation
-    - halo_masses: list of halo masses
+    Parameters
+    ----------
+    v : float
+        Volume of the simulation in (Mpc/h)^3
+    halo_masses : array_like
+        List of halo masses in Msun/h
+        
+    Returns
+    -------
+    float
+        Background density in Msun/h/(Mpc/h)^3
+    
+    Notes
+    -----
+    Currently uses fixed values for critical density and Omega_m.
     """
     rho_c = 2.775e11 #h^2 M_sun / Mpc^3
     Omega_m = 0.3071
     return rho_c * Omega_m 
-    #return 8.5e10  # Placeholder for background density
 
 def rho_nfw(r, r_s, rho0, r_tr, r_0=1e-10):
     """
-    Truncated NFW profile (Eq. 2.8)
-
-    ρ_nfw(x, τ) = ρ0 / [ x (1+x)^2 (1 + (x/τ)^2)^2 ]
-    with x = r/r_s and τ = r_tr/r_s.
-    Best result with τ = 8c (Schneider & Teyssier 2016).
-
-    Parameters:
-    - r: radius
-    - r_s: scale radius
-    - rho0: normalization factor
-    - r_tr: truncation radius
-    - r_0: minimum radius to avoid singularity (default: 1e-10)
+    Calculate the truncated NFW density profile.
+    
+    Implements the truncated NFW profile from Eq. 2.8:
+    ρ_nfw(x, τ) = ρ0 / [x (1+x)^2 (1 + (x/τ)^2)^2]
+    where x = r/r_s and τ = r_tr/r_s.
+    
+    Parameters
+    ----------
+    r : float or array_like
+        Radius in Mpc/h
+    r_s : float
+        Scale radius in Mpc/h
+    rho0 : float
+        Characteristic density in Msun/h/(Mpc/h)^3
+    r_tr : float
+        Truncation radius in Mpc/h
+    r_0 : float, optional
+        Minimum radius to avoid singularity, default 1e-10 Mpc/h
+    
+    Returns
+    -------
+    float or array_like
+        NFW density at the specified radius/radii in Msun/h/(Mpc/h)^3
+    
+    Notes
+    -----
+    Best results are achieved with τ = r_tr/r_s = 8c (Schneider & Teyssier 2016).
     """
     r = np.maximum(r, r_0)  # Ensure r is at least r_0 to avoid division by zero
     x = r / r_s
@@ -45,9 +73,31 @@ def rho_nfw(r, r_s, rho0, r_tr, r_0=1e-10):
 
 def mass_profile(r, density_func, **kwargs):
     """
-    Computes the enclosed mass M(r) using Gauss-Legendre quadrature with log transform.
+    Compute the enclosed mass within radius r for a given density profile.
+    
+    This function uses Gauss-Legendre quadrature with log-space transformation
+    to efficiently calculate the enclosed mass by integrating 4πr²ρ(r) from a 
+    small inner radius to r.
+    
+    Parameters
+    ----------
+    r : float
+        Radius within which to compute the enclosed mass, in Mpc/h
+    density_func : callable
+        Function that returns the density at a given radius
+    **kwargs : dict
+        Additional arguments to pass to the density function
+    
+    Returns
+    -------
+    float
+        Enclosed mass in Msun/h
+    
+    Notes
+    -----
+    For NFW profiles with r_tr >> r_s, this function automatically uses the
+    analytical solution for better accuracy and performance.
     """
-    # For NFW with r_tr >> r_s, use analytical solution
     if density_func == rho_nfw and 'r_tr' in kwargs and kwargs['r_tr'] > 5*kwargs['r_s']:
         r_s = kwargs['r_s']
         rho0 = kwargs['rho0']
@@ -56,67 +106,125 @@ def mass_profile(r, density_func, **kwargs):
     
     r_min = 1e-8  # Lower minimum radius to capture more central mass
     
-    # Use Gauss-Legendre quadrature with log transformation
     from scipy import special
     
-    # Get Gauss-Legendre points and weights
     n_points = 48  # Higher number of points for better accuracy
     x, w = special.roots_legendre(n_points)
     
-    # Transform to log space from r_min to r
     s_min = np.log(r_min)
     s_max = np.log(r)
     s = 0.5 * (s_max - s_min) * x + 0.5 * (s_max + s_min)
     radius = np.exp(s)
     
-    # Calculate integrand at each point
     integrand = 4 * np.pi * radius**3 * np.array([density_func(r_i, **kwargs) for r_i in radius])
     
-    # Apply weights and sum
     M = 0.5 * (s_max - s_min) * np.sum(w * integrand)
     
     return M
 
 def mass_nfw_analytical(r, r_s, rho0):
+    """
+    Calculate the enclosed mass for an NFW profile using the analytical formula.
+    
+    Parameters
+    ----------
+    r : float
+        Radius within which to compute the enclosed mass, in Mpc/h
+    r_s : float
+        Scale radius in Mpc/h
+    rho0 : float
+        Characteristic density in Msun/h/(Mpc/h)^3
+    
+    Returns
+    -------
+    float
+        Enclosed mass in Msun/h
+    
+    Notes
+    -----
+    Uses the formula: M(r) = 4πρ0r_s³(ln(1+x) - x/(1+x)) where x = r/r_s
+    This is valid for a standard (non-truncated) NFW profile.
+    """
     x = r/r_s
     return 4*np.pi*rho0*r_s**3*(np.log(1+x) - x/(1+x))
 
 def calculate_total_mass(r_vals, rho_bcm):
     """
-    Calculate the total mass by integrating the total density profile.
+    Calculate the total mass by integrating the density profile.
     
-    Parameters:
-        r_vals (array): Radius values in Mpc/h
-        rho_bcm (array): Total density profile in Msun/h/Mpc³
+    This function numerically integrates 4πr²ρ(r) over the radius range to
+    compute the total enclosed mass.
     
-    Returns:
-        float: Total mass in Msun/h
+    Parameters
+    ----------
+    r_vals : array_like
+        Radius values in Mpc/h
+    rho_bcm : array_like
+        Density profile in Msun/h/(Mpc/h)³
+    
+    Returns
+    -------
+    float
+        Total mass in Msun/h
+    
+    Notes
+    -----
+    Uses trapezoidal integration for the numerical calculation.
     """
-    # Integrate 4πr²ρ(r) over the radius range
     integrand = 4 * np.pi * r_vals**2 * rho_bcm
     M_total = np.trapz(integrand, r_vals)  # Use trapezoidal integration
     return M_total
 
 def y_bgas(r, r_s, r200, y0, c, rho0, r_tr):
+    """
+    Calculate the baryonic gas density profile.
+    
+    This function implements a modified profile for baryonic gas that consists
+    of an inner profile (power law) and an outer NFW profile, with a smooth
+    transition between them at r200/√5.
+    
+    Parameters
+    ----------
+    r : float or array_like
+        Radius in Mpc/h
+    r_s : float
+        Scale radius in Mpc/h
+    r200 : float
+        Virial radius in Mpc/h
+    y0 : float
+        Normalization parameter
+    c : float
+        Concentration parameter (r200/r_s)
+    rho0 : float
+        Characteristic density in Msun/h/(Mpc/h)^3
+    r_tr : float
+        Truncation radius in Mpc/h
+    
+    Returns
+    -------
+    float or array_like
+        Baryonic gas density at the specified radius/radii in Msun/h/(Mpc/h)^3
+    
+    Notes
+    -----
+    The inner profile is given by Eq. 2.10: y0 * (ln(1+x)/x)^Γ_eff
+    The outer profile follows the NFW form.
+    The transition radius is r200/√5.
+    """
     sqrt5 = np.sqrt(5)
     r_transition = r200 / sqrt5
     x = r / r_s
 
-    # Gamma_eff (Eq. 2.11)
     Gamma_eff = (1 + 3*c/sqrt5) * np.log(1 + c/sqrt5) / ((1 + c/sqrt5)*np.log(1 + c/sqrt5) - c/sqrt5)
     
-    # Inner profile (Eq. 2.10)
     inner_val = y0 * (np.log(1 + x) / x)**Gamma_eff
     
-    # Outer NFW profile
     outer_val = rho_nfw(r, r_s, y0, r_tr)
     
-    # Value match at transition
     x_trans = r_transition / r_s
     inner_at_trans = y0 * (np.log(1 + x_trans) / x_trans)**Gamma_eff
     outer_at_trans = rho_nfw(r_transition, r_s, y0, r_tr)
     scale_factor = outer_at_trans / inner_at_trans
-    #print(f"Scale factor: {scale_factor}")
     inner_scaled = inner_val * scale_factor
     outer_scaled = outer_val / scale_factor
     
@@ -124,123 +232,160 @@ def y_bgas(r, r_s, r200, y0, c, rho0, r_tr):
 
 def y_egas(r, M_tot, r_ej):
     """
-    Ejected gas profile (Eq. 2.13), modeled as a Gaussian.
-
-    y_egas(r) = M_tot / ((2π r_ej^2)^(3/2)) * exp[- r^2 / (2 r_ej^2)]
+    Calculate the ejected gas density profile.
+    
+    This function implements the ejected gas profile as a 3D Gaussian 
+    distribution as described in Eq. 2.13:
+    y_egas(r) = M_tot / ((2π r_ej²)^(3/2)) * exp[-r²/(2r_ej²)]
+    
+    Parameters
+    ----------
+    r : float or array_like
+        Radius in Mpc/h
+    M_tot : float
+        Total mass of the ejected gas component in Msun/h
+    r_ej : float
+        Characteristic ejection radius in Mpc/h
+    
+    Returns
+    -------
+    float or array_like
+        Ejected gas density at the specified radius/radii in Msun/h/(Mpc/h)^3
+    
+    Notes
+    -----
+    This component represents gas that has been ejected from the halo due to
+    feedback processes such as AGN activity and supernovae.
     """
     norm = M_tot / ((2 * np.pi * r_ej**2)**(1.5))
     return norm * np.exp(- r**2 / (2 * r_ej**2))
 
 def y_cgal(r, M_tot, R_h):
     """
-    Central galaxy (stellar) profile (Eq. 2.14).
-
-    A form based on observations:
-    y_cgal(r) = M_tot / (4 π^(3/2) R_h) * (1/r^2) * exp[- (r/(2 R_h))^2]
+    Calculate the central galaxy (stellar) density profile.
+    
+    This function implements the central galaxy profile based on observations,
+    as described in Eq. 2.14:
+    y_cgal(r) = M_tot / (4π^(3/2)R_h) * (1/r²) * exp[-(r/(2R_h))²]
+    
+    Parameters
+    ----------
+    r : float or array_like
+        Radius in Mpc/h
+    M_tot : float
+        Total stellar mass in Msun/h
+    R_h : float
+        Characteristic radius (Hernquist scale radius) in Mpc/h
+    
+    Returns
+    -------
+    float or array_like
+        Stellar density at the specified radius/radii in Msun/h/(Mpc/h)^3
+    
+    Notes
+    -----
+    This profile is similar to a Hernquist profile but with a Gaussian cutoff
+    to better match observed stellar distributions in galaxies.
+    A small core radius is added to prevent division by zero at r=0.
     """
-    # Add a tiny core radius to prevent division by zero
     r_safe = max(r, 1e-10)  # Prevent r=0 issues
     
-    # Avoid underflow/overflow in the exponential
     exp_term = np.exp(-(r_safe/(2*R_h))**2)
     
     norm = M_tot / (4 * np.pi**1.5 * R_h)
     return norm * (1.0 / r_safe**2) * exp_term
 
-def y_rdm_ac(r, r_s, rho0, r_tr, norm = 1.0,
+def y_rdm_ac(r, r_s, rho0, r_tr, norm=1.0,
              a=0.68,                # contraction strength
-             f_cdm=0.839,             # CDM fraction of total mass
+             f_cdm=0.839,           # CDM fraction of total mass
              baryon_components=None, # list of (r_array, y_vals) tuples
-            verbose=False):
+             verbose=False):
     """
-    Adiabatically contracted DM profile with radius-dependent xi.
-
-    baryon_components: e.g.
-      [
-        (r_array, y_bgas_vals),
-        (r_array, y_bcg_vals),
-        (r_array, y_egas_vals)
-      ]
+    Calculate the adiabatically contracted dark matter profile.
+    
+    This function implements the adiabatic contraction model where the contraction 
+    parameter ξ is computed for each radius by solving the equation:
+    rf/ri - 1 = a * (M_i(ri)/M_f(rf) - 1)
+    
+    Parameters
+    ----------
+    r : float or array_like
+        Radius in Mpc/h
+    r_s : float
+        Scale radius in Mpc/h
+    rho0 : float
+        Characteristic density in Msun/h/(Mpc/h)^3
+    r_tr : float
+        Truncation radius in Mpc/h
+    norm : float, optional
+        Normalization factor, default 1.0
+    a : float, optional
+        Contraction strength parameter, default 0.68
+    f_cdm : float, optional
+        CDM fraction of total mass, default 0.839
+    baryon_components : list of tuple, optional
+        List of (r_array, y_vals) tuples representing baryon component profiles
+    verbose : bool, optional
+        Whether to print diagnostic information, default False
+    
+    Returns
+    -------
+    float or array_like
+        Contracted dark matter density at the specified radius/radii in Msun/h/(Mpc/h)^3
+    
+    Notes
+    -----
+    The contraction parameter ξ = rf/ri represents how much a shell of dark matter
+    has been contracted due to the presence of baryons. The contracted density is
+    computed as ρ(rf) = ξ^(-3) * ρ_nfw(ri).
+    
+    For each radius rf, this function numerically solves for the initial radius ri
+    using the brentq root-finding algorithm. It includes extensive error handling
+    to deal with cases where the equation has no solution.
     """
-
     def xi_of_r(rf):
         import BCM.utils as ut
-        # Solve rf/ri - 1 = a*(M_i(ri)/M_f(rf) - 1) for ri/rf = xi
-        # where M_i is the mass before contraction and M_f is the mass after contraction
-        # and rf is the radius at which we want to evaluate the density.
-
-        # mass in baryons at rf
         M_b_rf = 0.0
         if baryon_components:
             for r_array, rho_array in baryon_components:
                 baryon_mass = ut.cumul_mass_single(rf, rho_array, r_array)
                 M_b_rf += baryon_mass
-        #M_dm_initial_rf = mass_profile(rf, rho_nfw, r_s=r_s, rho0=rho0, r_tr=r_tr)
         
         def G(ri):
-            # mass before contraction (2.16)
             M_i_ri = mass_profile(ri, rho_nfw, r_s=r_s, rho0=rho0, r_tr=r_tr)
-            #f_cdm = DEFAULTS['f_cdm']
-            f_cdm = M_i_ri / (M_i_ri + M_b_rf)  # CDM fraction of total mass
-            # mass after contraction (2.16)
-            M_f_rf = M_i_ri * f_cdm + M_b_rf  # Total mass after contraction
-            #M_f_rf = M_dm_initial_rf + M_b_rf
-            # Use a modified scaling that ensures some minimum contraction
-            #a_min = 0.1 * a  # Minimum level of contraction (10% of normal)
-            #scale_radius = 0.2 * r_s 
-            #a_new = a_min + (a - a_min) * (1.0 - np.exp(-rf/scale_radius))
-            
-            a_new = a # set to a fixed value as Schneider
-            
-            # Avoid division by zero or negative mass
+            f_cdm = M_i_ri / (M_i_ri + M_b_rf)
+            M_f_rf = M_i_ri * f_cdm + M_b_rf
+            a_new = a 
             if M_f_rf <= 1e-9: return np.nan
-            
             ratio = M_i_ri / M_f_rf
-            
             if ri < 1e-10: return np.inf
-            
             return rf/ri - 1.0 - a_new*(ratio - 1.0)
 
-        # bracket ri between a tiny inner radius and rf
-        ri_min = max(rf*1e-5, 1e-8)  # Avoid division by zero
-        ri_max = max(rf*1e4, r_tr*1.5)    # Don't go beyond truncation radius 
+        ri_min = max(rf*1e-5, 1e-8)
+        ri_max = max(rf*1e4, r_tr*1.5)
         
         try:
             g_min = G(ri_min)
             g_max = G(ri_max)
 
-            # Handle potential NaN from G function (e.g., if M_f_rf was <= 0)
             if np.isnan(g_min) or np.isnan(g_max):
                  print(f"ERROR: G(ri) returned NaN at bounds for rf={rf:.3e}. ri_min={ri_min:.3e}, ri_max={ri_max:.3e}. Returning xi=1.0")
                  return 1.0
 
             if g_min * g_max >= 0:
-                # Root not bracketed - THIS IS LIKELY THE PROBLEM AREA
                 print(f"WARNING: Root not bracketed for rf={rf:.3e}. Bounds=[{ri_min:.3e}, {ri_max:.3e}].")
-                print(f"  G(min)={g_min:.3e}, G(max)={g_max:.3e}")
-                # Check if root is at the boundary
                 if abs(g_min) < 1e-7:
-                    print("  Root likely at ri_min.")
                     return rf / ri_min
                 if abs(g_max) < 1e-7:
-                    print("  Root likely at ri_max.")
                     return rf / ri_max
-
-                # Analyze G's behavior: Is it always positive or always negative?
-                # Calculate G at rf for reference: G(rf) should be -a*(M_nfw(rf)/M_f_rf - 1)
                 g_at_rf = G(rf)
-                print(f"  G(rf) = {g_at_rf:.3e}")
                 if g_min > 0 and g_max > 0:
                     print("  G(ri) > 0 in bounds. Implies strong contraction (ri << rf) or issue.")
                 elif g_min < 0 and g_max < 0:
                     print("  G(ri) < 0 in bounds. Implies strong expansion (ri >> rf) or issue.")
-
-                # As a fallback, return 1.0, but signal that it's problematic
-                print("  Returning default xi=1.0 due to bracketing issue.")
                 return 1.0
 
-            # If bracketed, proceed with root finding
-            ri = brentq(G, ri_min, ri_max, xtol=1e-6, rtol=1e-6) # Added rtol
+            ri = brentq(G, ri_min, ri_max, xtol=1e-6, rtol=1e-6)
             xi = rf / ri
 
             if xi <= 0:
@@ -249,25 +394,20 @@ def y_rdm_ac(r, r_s, rho0, r_tr, norm = 1.0,
             return xi
 
         except ValueError as e:
-             # Catch errors during brentq execution
              print(f"ERROR: brentq failed for rf={rf:.3e}: {e}. Bounds=[{ri_min:.3e}, {ri_max:.3e}]. G(min)={g_min:.3e}, G(max)={g_max:.3e}. Returning xi=1.0")
              return 1.0
 
-    
-    # handle scalar or array r
     if np.isscalar(r):
         xi = xi_of_r(r)
         ri = r/xi
         return norm * xi**(-3) * rho_nfw(ri, r_s, rho0, r_tr)
 
-    # vectorized
     out = np.zeros_like(r)
     xi_vals = np.zeros_like(r)
     for i, rf in enumerate(r):
         xi = xi_of_r(rf)
         xi = 1 if xi > 1 else xi
         diff = 1 - xi 
-        #xi = 1 - diff/2
         xi_vals[i] = xi
         ri = rf/xi
         out[i] = norm * xi**(-3) * rho_nfw(ri, r_s, rho0, r_tr)
@@ -277,33 +417,57 @@ def y_rdm_ac(r, r_s, rho0, r_tr, norm = 1.0,
         print(f"First xi ~ 1 at index: {idx_almost_one} and r = {r[idx_almost_one]}")
     return out
 
-def y_rdm_ac2(r, r_s, rho0, r_tr, M_i, M_f,verbose, norm = 1.0,
-             a=0.68,                # contraction strength
-             f_cdm=0.839,             # CDM fraction of total mass
-            ):
+def y_rdm_ac2(r, r_s, rho0, r_tr, M_i, M_f, verbose, norm=1.0,
+              a=0.68,               # contraction strength
+              f_cdm=0.839):         # CDM fraction of total mass
     """
-    Adiabatically contracted DM profile with radius-dependent xi.
-
-    baryon_components: e.g.
-      [
-        (y_bgas,    {'r_s':r_s, 'r200':r200, 'y0':y0, 'c':c, 'rho0':rho0, 'r_tr':r_tr}, f_bgas),
-        (y_bcg,     {...}, f_bcg),
-        ...
-      ]
+    Calculate the adiabatically contracted dark matter profile using pre-computed mass profiles.
+    
+    This alternative implementation of adiabatic contraction uses pre-computed
+    mass profiles M_i and M_f rather than calculating them on-the-fly.
+    
+    Parameters
+    ----------
+    r : array_like
+        Radius array in Mpc/h
+    r_s : float
+        Scale radius in Mpc/h
+    rho0 : float
+        Characteristic density in Msun/h/(Mpc/h)^3
+    r_tr : float
+        Truncation radius in Mpc/h
+    M_i : array_like
+        Initial mass profile (before contraction) in Msun/h
+    M_f : array_like
+        Final mass profile (after contraction) in Msun/h
+    verbose : bool
+        Whether to print diagnostic information
+    norm : float, optional
+        Normalization factor, default 1.0
+    a : float, optional
+        Contraction strength parameter, default 0.68
+    f_cdm : float, optional
+        CDM fraction of total mass, default 0.839
+    
+    Returns
+    -------
+    array_like
+        Contracted dark matter density at the specified radii in Msun/h/(Mpc/h)^3
+    
+    Notes
+    -----
+    This method interpolates the mass profiles to determine the contraction
+    parameter ξ at each radius. It then applies the same contraction formula as
+    y_rdm_ac but avoids recomputing the mass profiles at each step.
     """
-
     def xi_of_r(rf):
-        # Solve rf/ri - 1 = a*(M_i(ri)/M_f(rf) - 1) for ri in (ε, rf)
         def G(ri):
-            # Interpolate M_i(ri) and M_f(rf) from provided arrays
             M_i_interp = np.interp(ri, r, M_i)
             M_f_interp = np.interp(rf, r, M_f)
             return rf/ri - 1.0 - a*(M_i_interp/M_f_interp - 1.0)
 
-        # bracket ri between a tiny inner radius and rf
         ri_min, ri_max = rf*1e-3, rf * 100
         
-        # Check if solution exists in this interval
         g_min, g_max = G(ri_min), G(ri_max)
         if g_min * g_max >= 0:
             print(f"WARNING: Root not bracketed for rf={rf:.3e}. Bounds=[{ri_min:.3e}, {ri_max:.3e}].")
@@ -312,7 +476,6 @@ def y_rdm_ac2(r, r_s, rho0, r_tr, M_i, M_f,verbose, norm = 1.0,
         ri = brentq(G, ri_min, ri_max, xtol=1e-6, disp=True)
         return rf/ri
 
-    # vectorized
     out = np.zeros_like(r)
     xi_vals = np.zeros_like(r)
     for i, rf in enumerate(r):
@@ -327,33 +490,55 @@ def y_rdm_ac2(r, r_s, rho0, r_tr, M_i, M_f,verbose, norm = 1.0,
     return out
 
 def y_rdm_fixed_xi(r, r_s, rho0, r_tr, xi=0.85, norm=1.0,
-             a=0.68,                # contraction strength
-             f_cdm=0.839,             # CDM fraction of total mass
-             baryon_components=None # list of (r_array, y_vals) tuples
-            ):
+                   a=0.68,          # contraction strength
+                   f_cdm=0.839,     # CDM fraction of total mass
+                   baryon_components=None): # list of (r_array, y_vals) tuples
     """
-    Adiabatically contracted DM profile with a fixed xi value for all radii.
-
-    Parameters:
-        r (float or array): Radius or array of radii.
-        r_s (float): Scale radius.
-        rho0 (float): Normalization factor.
-        r_tr (float): Truncation radius.
-        xi (float): Fixed contraction parameter.
-        norm (float): Normalization factor.
-
-    Returns:
-        float or array: Contracted DM density profile.
+    Calculate the dark matter profile with a fixed contraction parameter.
+    
+    This simplified version of the adiabatic contraction model uses a fixed
+    contraction parameter ξ for all radii instead of solving for it separately
+    at each radius.
+    
+    Parameters
+    ----------
+    r : float or array_like
+        Radius in Mpc/h
+    r_s : float
+        Scale radius in Mpc/h
+    rho0 : float
+        Characteristic density in Msun/h/(Mpc/h)^3
+    r_tr : float
+        Truncation radius in Mpc/h
+    xi : float, optional
+        Fixed contraction parameter, default 0.85
+    norm : float, optional
+        Normalization factor, default 1.0
+    a : float, optional
+        Contraction strength parameter (not used in this function), default 0.68
+    f_cdm : float, optional
+        CDM fraction of total mass (not used in this function), default 0.839
+    baryon_components : list, optional
+        Baryon components (not used in this function)
+    
+    Returns
+    -------
+    float or array_like
+        Contracted dark matter density at the specified radius/radii in Msun/h/(Mpc/h)^3
+    
+    Notes
+    -----
+    This simplified model provides a way to apply contraction without the
+    computational expense of solving for ξ at each radius. This method uses
+    radius-dependent contraction for r < 0.04, transitioning to no contraction (ξ=1)
+    for r ≥ 0.04.
     """
     limit = 0.04
     inner_xi = 0.65
     if r < limit:
-        # Interpolate xi nonlinearly: slow near limit, faster near 0 (e.g., quadratic)
         xi_interp = 1 - ((1 - inner_xi)) * ((1 - r / limit))
         xi = np.clip(xi_interp, inner_xi, 1.0)
-        print(f"xi: {xi} for r: {r}")
     else:
         xi = 1
     ri = r / xi
-    #print(f"xi: {xi}")
     return norm * xi**(-3) * rho_nfw(ri, r_s, rho0, r_tr)

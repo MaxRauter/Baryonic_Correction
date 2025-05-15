@@ -6,6 +6,12 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
+# Add this near the top of the file, after the imports
+
+import os
+import sys
+sys.path.insert(0, os.path.abspath('/Users/Maxi/Desktop/Uni/Master/Masterarbeit/Baryonic_Correction'))  # Adds the parent directory to the Python path
+
 project = 'Baryonic_Correction_Model'
 copyright = '2025, Max Rauter'
 author = 'Max Rauter'
@@ -20,11 +26,12 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.viewcode",
     "sphinx.ext.napoleon",
+    "sphinx.ext.autodoc",
+    "sphinx.ext.viewcode",
 ]
 
 templates_path = ['_templates']
 exclude_patterns = []
-
 
 
 # -- Options for HTML output -------------------------------------------------
@@ -32,3 +39,11 @@ exclude_patterns = []
 
 html_theme = "sphinx_rtd_theme"
 html_static_path = ['_static']
+html_title = "Baryonic Correction Model"
+#html_logo = "_static/logo.png"  # Add your logo
+#html_favicon = "_static/favicon.ico"
+
+# Custom CSS
+html_css_files = [
+    'custom.css',
+]

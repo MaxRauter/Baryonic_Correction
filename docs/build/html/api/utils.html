@@ -1,0 +1,483 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Utility Functions &mdash; Baryonic Correction Model</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/custom.css" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=a264681e"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="Simulations" href="simulations.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Baryonic_Correction_Model
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage.html">Usage</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">API Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="abundance_fractions.html">Abundance Fractions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="density_profiles.html">Density Profiles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simulations.html">Simulations</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Utility Functions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#functions">Functions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#halo-structure-calculations">Halo Structure Calculations</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#mass-calculations">Mass Calculations</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#normalization">Normalization</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#visualization">Visualization</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#examples">Examples</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#calculating-halo-concentration">Calculating Halo Concentration</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#cumulative-mass-calculation">Cumulative Mass Calculation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#component-normalization">Component Normalization</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Baryonic_Correction_Model</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">API Reference</a></li>
+      <li class="breadcrumb-item active">Utility Functions</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/utils.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="utility-functions">
+<h1>Utility Functions<a class="headerlink" href="#utility-functions" title="Link to this heading"></a></h1>
+<p id="module-BCM.utils">The <code class="docutils literal notranslate"><span class="pre">utils</span></code> module provides utility functions that support the Baryonic Correction Model. These utilities include methods for halo structure calculations, mass profiles, normalization, and visualization.</p>
+<section id="functions">
+<h2>Functions<a class="headerlink" href="#functions" title="Link to this heading"></a></h2>
+<section id="halo-structure-calculations">
+<h3>Halo Structure Calculations<a class="headerlink" href="#halo-structure-calculations" title="Link to this heading"></a></h3>
+<dl class="py function">
+<dt class="sig sig-object py" id="BCM.utils.calc_concentration">
+<span class="sig-prename descclassname"><span class="pre">BCM.utils.</span></span><span class="sig-name descname"><span class="pre">calc_concentration</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">M200</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/utils.html#calc_concentration"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#BCM.utils.calc_concentration" title="Link to this definition"></a></dt>
+<dd><p>Calculate halo concentration using the Duffy et al. (2008) relation.</p>
+<p>This function uses the concentration-mass relation for relaxed halos from
+Duffy et al. 2008 to determine the concentration parameter of a dark matter halo.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>M200</strong> (<em>float</em>) – Halo mass M_200 in Msun/h (solar masses divided by the Hubble parameter)</p></li>
+<li><p><strong>z</strong> (<em>float</em>) – Redshift</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Concentration parameter of the halo, constrained to be between 2.0 and 20.0</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>The relation is: c = A * ((M200 / Mpivot)**B) * (1 + z)**C
+where A=5.71, B=-0.084, C=-0.47, and Mpivot=2e12 Msun/h</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="BCM.utils.calc_r_ej">
+<span class="sig-prename descclassname"><span class="pre">BCM.utils.</span></span><span class="sig-name descname"><span class="pre">calc_r_ej</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">r200</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mu</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Omega_m</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.3071</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">h</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.6777</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">theta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/utils.html#calc_r_ej"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#BCM.utils.calc_r_ej" title="Link to this definition"></a></dt>
+<dd><p>Calculate the characteristic radius for ejected gas using Eqs. 2.22 and 2.23 from Schneider &amp; Teyssier 2016.</p>
+<p>The ejection radius is given by:
+r_ej = mu * theta * r_200 * sqrt(delta_200)</p>
+<p>where:
+- delta_200 = 200 * (H(z)/H0)² * (1+z)³ / Omega_m
+- theta is a free parameter (default 0.5 from Schneider 2016)
+- mu is a scaling factor for the escape radius (default 0.5)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>r200</strong> (<em>float</em>) – Halo radius r_200 in Mpc/h</p></li>
+<li><p><strong>z</strong> (<em>float</em><em>, </em><em>optional</em>) – Redshift, defaults to 0</p></li>
+<li><p><strong>mu</strong> (<em>float</em><em>, </em><em>optional</em>) – Scaling factor for escape radius, defaults to 0.5</p></li>
+<li><p><strong>Omega_m</strong> (<em>float</em><em>, </em><em>optional</em>) – Matter density parameter at z=0, defaults to 0.3071</p></li>
+<li><p><strong>h</strong> (<em>float</em><em>, </em><em>optional</em>) – Hubble constant in units of 100 km/s/Mpc, defaults to 0.6777</p></li>
+<li><p><strong>theta</strong> (<em>float</em><em>, </em><em>optional</em>) – Free parameter, default=0.5 (from Schneider &amp; Teyssier 2016)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Ejection radius r_ej in Mpc/h</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="BCM.utils.calc_r_ej2">
+<span class="sig-prename descclassname"><span class="pre">BCM.utils.</span></span><span class="sig-name descname"><span class="pre">calc_r_ej2</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">M200</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r200</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Omega_m</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.3071</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Omega_Lambda</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.6929</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">h</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.6777</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">theta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta_0</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">420.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">M_ej0</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1500000000000.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/utils.html#calc_r_ej2"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#BCM.utils.calc_r_ej2" title="Link to this definition"></a></dt>
+<dd><p>Calculate the characteristic radius for ejected gas using Eqs. 2.22 and 2.23 from Schneider 2015.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>M200</strong> (<em>float</em>) – Halo mass M_200 in Msun/h</p></li>
+<li><p><strong>r200</strong> (<em>float</em>) – Halo radius r_200 in Mpc/h</p></li>
+<li><p><strong>z</strong> (<em>float</em><em>, </em><em>optional</em>) – Redshift, defaults to 0</p></li>
+<li><p><strong>Omega_m</strong> (<em>float</em><em>, </em><em>optional</em>) – Matter density parameter at z=0, defaults to 0.3071</p></li>
+<li><p><strong>Omega_Lambda</strong> (<em>float</em><em>, </em><em>optional</em>) – Dark energy density parameter at z=0, defaults to 0.6929</p></li>
+<li><p><strong>h</strong> (<em>float</em><em>, </em><em>optional</em>) – Hubble constant in units of 100 km/s/Mpc, defaults to 0.6777</p></li>
+<li><p><strong>theta</strong> (<em>float</em><em>, </em><em>optional</em>) – Free parameter, default=4.0</p></li>
+<li><p><strong>delta_0</strong> (<em>float</em><em>, </em><em>optional</em>) – Characteristic density parameter, default=420.0</p></li>
+<li><p><strong>M_ej0</strong> (<em>float</em><em>, </em><em>optional</em>) – Characteristic ejected mass, default=1.5e12 Msun/h</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Ejection radius r_ej in Mpc/h</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="BCM.utils.calc_R_h">
+<span class="sig-prename descclassname"><span class="pre">BCM.utils.</span></span><span class="sig-name descname"><span class="pre">calc_R_h</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">M200</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r200</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/utils.html#calc_R_h"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#BCM.utils.calc_R_h" title="Link to this definition"></a></dt>
+<dd><p>Calculate the half-light radius of the central galaxy based on halo mass.</p>
+<p>Uses observational scaling relations to determine a more accurate half-light radius
+that varies with halo mass. For low-mass halos, R_h is relatively larger compared
+to r200, while for high-mass halos it’s relatively smaller.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>M200</strong> (<em>float</em>) – Halo mass in Msun/h</p></li>
+<li><p><strong>r200</strong> (<em>float</em>) – Halo radius in Mpc/h</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Half-light radius R_h in Mpc/h</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>The base relation is R_h = 0.015 * r200, which is then scaled based on halo mass.</p>
+</dd></dl>
+
+</section>
+<section id="mass-calculations">
+<h3>Mass Calculations<a class="headerlink" href="#mass-calculations" title="Link to this heading"></a></h3>
+<dl class="py function">
+<dt class="sig sig-object py" id="BCM.utils.cumul_mass">
+<span class="sig-prename descclassname"><span class="pre">BCM.utils.</span></span><span class="sig-name descname"><span class="pre">cumul_mass</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">r_array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rho_array</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/utils.html#cumul_mass"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#BCM.utils.cumul_mass" title="Link to this definition"></a></dt>
+<dd><p>Calculate the cumulative mass profile from a density profile.</p>
+<p>Integrates the density profile to compute the enclosed mass at each radius.
+Uses adaptive techniques to ensure numerical stability near the origin.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>r_array</strong> (<em>array_like</em>) – Array of radii in Mpc/h</p></li>
+<li><p><strong>rho_array</strong> (<em>array_like</em>) – Array of density values in Msun/h/Mpc³, corresponding to r_array</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Array of cumulative masses in Msun/h, corresponding to each radius in r_array</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>array_like</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>For improved numerical stability, the integration is performed using logarithmic
+spacing near the origin and adaptive methods for different radius ranges.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="BCM.utils.cumul_mass_single">
+<span class="sig-prename descclassname"><span class="pre">BCM.utils.</span></span><span class="sig-name descname"><span class="pre">cumul_mass_single</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">r</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rho_array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r_array</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/utils.html#cumul_mass_single"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#BCM.utils.cumul_mass_single" title="Link to this definition"></a></dt>
+<dd><p>Calculate cumulative mass from a density profile for a single radius value.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>r</strong> (<em>float</em>) – The radius at which to compute the cumulative mass in Mpc/h</p></li>
+<li><p><strong>rho_array</strong> (<em>array_like</em>) – The density profile values in Msun/h/Mpc³</p></li>
+<li><p><strong>r_array</strong> (<em>array_like</em>) – The corresponding radius values for the density profile in Mpc/h</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The cumulative mass within radius r in Msun/h</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>Similar to cumul_mass but optimized for computing the mass at a single radius value.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="BCM.utils.bracket_rho0">
+<span class="sig-prename descclassname"><span class="pre">BCM.utils.</span></span><span class="sig-name descname"><span class="pre">bracket_rho0</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">M_target</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r_s</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r_tr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r200</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r_max</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/utils.html#bracket_rho0"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#BCM.utils.bracket_rho0" title="Link to this definition"></a></dt>
+<dd><p>Solve for the NFW density normalization (rho0) that produces a specified enclosed mass.</p>
+<p>Uses the Brent method to find the value of rho0 such that the enclosed mass
+at radius r_max equals M_target.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>M_target</strong> (<em>float</em>) – Target enclosed mass at r_max in Msun/h</p></li>
+<li><p><strong>r_s</strong> (<em>float</em>) – Scale radius of the NFW profile in Mpc/h</p></li>
+<li><p><strong>r_tr</strong> (<em>float</em>) – Truncation radius in Mpc/h (can be np.inf for untruncated profiles)</p></li>
+<li><p><strong>r200</strong> (<em>float</em>) – Halo radius r_200 in Mpc/h</p></li>
+<li><p><strong>r_max</strong> (<em>float</em><em>, </em><em>optional</em>) – Radius at which the enclosed mass should match M_target, defaults to r200</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The normalized density parameter rho0 for the NFW profile</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ValueError</strong> – If the root finding algorithm cannot bracket the solution</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="normalization">
+<h3>Normalization<a class="headerlink" href="#normalization" title="Link to this heading"></a></h3>
+<dl class="py function">
+<dt class="sig sig-object py" id="BCM.utils.normalize_component_total">
+<span class="sig-prename descclassname"><span class="pre">BCM.utils.</span></span><span class="sig-name descname"><span class="pre">normalize_component_total</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">density_func</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">M200_loc</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r200_loc</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/utils.html#normalize_component_total"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#BCM.utils.normalize_component_total" title="Link to this definition"></a></dt>
+<dd><p>Normalize a density function so that its total mass out to a large radius equals M_target.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>density_func</strong> (<em>callable</em>) – The density function to normalize</p></li>
+<li><p><strong>args</strong> (<em>tuple</em>) – Arguments to pass to the density function</p></li>
+<li><p><strong>M200_loc</strong> (<em>float</em>) – Target mass (M200) in Msun/h</p></li>
+<li><p><strong>r200_loc</strong> (<em>float</em>) – Halo radius r200 in Mpc/h, used to determine the maximum integration radius</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The normalization factor to apply to the density function</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>The function integrates the unnormalized density profile out to 100*r200_loc
+to approximate the total mass to infinity.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="BCM.utils.normalize_component">
+<span class="sig-prename descclassname"><span class="pre">BCM.utils.</span></span><span class="sig-name descname"><span class="pre">normalize_component</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">density_func</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">M200_loc</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r200_loc</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/utils.html#normalize_component"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#BCM.utils.normalize_component" title="Link to this definition"></a></dt>
+<dd><p>Calculate normalization factor to make a density component contain M200 within r200.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>density_func</strong> (<em>callable</em>) – The density function to normalize</p></li>
+<li><p><strong>args</strong> (<em>tuple</em>) – Arguments to pass to the density function</p></li>
+<li><p><strong>M200_loc</strong> (<em>float</em>) – Target mass (M200) in Msun/h to contain within r200</p></li>
+<li><p><strong>r200_loc</strong> (<em>float</em>) – Halo radius r200 in Mpc/h</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The normalization factor to apply to the density function</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="visualization">
+<h3>Visualization<a class="headerlink" href="#visualization" title="Link to this heading"></a></h3>
+<dl class="py function">
+<dt class="sig sig-object py" id="BCM.utils.plot_bcm_profiles">
+<span class="sig-prename descclassname"><span class="pre">BCM.utils.</span></span><span class="sig-name descname"><span class="pre">plot_bcm_profiles</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">r_vals</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">components</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">title</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/utils.html#plot_bcm_profiles"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#BCM.utils.plot_bcm_profiles" title="Link to this definition"></a></dt>
+<dd><p>Create a three-panel plot of BCM density profiles, cumulative mass, and displacement.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>r_vals</strong> (<em>array_like</em>) – Radius values in Mpc/h</p></li>
+<li><p><strong>components</strong> (<em>dict</em>) – <dl class="simple">
+<dt>Dictionary containing the following components:</dt><dd><ul>
+<li><p>M200 (float): Halo mass in Msun/h</p></li>
+<li><p>r200 (float): Halo radius in Mpc/h</p></li>
+<li><p>r_s (float): Scale radius in Mpc/h</p></li>
+<li><p>rho_dmo (array): DM-only density profile</p></li>
+<li><p>rho_bcm (array): Total BCM density profile</p></li>
+<li><p>rho_bkg (array): Background density values</p></li>
+<li><p>rdm (array): Relaxed DM density values (with fraction applied)</p></li>
+<li><p>bgas (array): Bound gas density values (with fraction applied)</p></li>
+<li><p>egas (array): Ejected gas density values (with fraction applied)</p></li>
+<li><p>cgal (array): Central galaxy density values (with fraction applied)</p></li>
+<li><p>M_dmo (array): DM-only cumulative mass profile</p></li>
+<li><p>M_rdm (array): Relaxed DM cumulative mass profile</p></li>
+<li><p>M_bgas (array): Bound gas cumulative mass profile</p></li>
+<li><p>M_egas (array): Ejected gas cumulative mass profile</p></li>
+<li><p>M_cgal (array): Central galaxy cumulative mass profile</p></li>
+<li><p>M_bcm (array): Total BCM cumulative mass profile</p></li>
+<li><p>M_bgk (array): Background cumulative mass values</p></li>
+<li><p>disp (array): Displacement function values</p></li>
+</ul>
+</dd>
+</dl>
+</p></li>
+<li><p><strong>title</strong> (<em>str</em><em>, </em><em>optional</em>) – Custom title for the figure, defaults to auto-generated title with M200</p></li>
+<li><p><strong>save_path</strong> (<em>str</em><em>, </em><em>optional</em>) – Path to save the figure, if not provided the figure is not saved</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>fig</strong> (<em>matplotlib.figure.Figure</em>) – The matplotlib figure object</p></li>
+<li><p><strong>axes</strong> (<em>array of matplotlib.axes.Axes</em>) – The array of axes objects</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+<section id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Link to this heading"></a></h2>
+<section id="calculating-halo-concentration">
+<h3>Calculating Halo Concentration<a class="headerlink" href="#calculating-halo-concentration" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">BCM</span> <span class="kn">import</span> <span class="n">utils</span>
+
+<span class="c1"># Calculate concentration for a Milky Way-sized halo at z=0</span>
+<span class="n">M200</span> <span class="o">=</span> <span class="mf">1e12</span>  <span class="c1"># Msun/h</span>
+<span class="n">z</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+<span class="n">c</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">calc_concentration</span><span class="p">(</span><span class="n">M200</span><span class="p">,</span> <span class="n">z</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Concentration for a </span><span class="si">{</span><span class="n">M200</span><span class="si">:</span><span class="s2">.2e</span><span class="si">}</span><span class="s2"> Msun/h halo at z=</span><span class="si">{</span><span class="n">z</span><span class="si">}</span><span class="s2">: c = </span><span class="si">{</span><span class="n">c</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="cumulative-mass-calculation">
+<h3>Cumulative Mass Calculation<a class="headerlink" href="#cumulative-mass-calculation" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">BCM</span> <span class="kn">import</span> <span class="n">utils</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="c1"># Create sample data</span>
+<span class="n">r_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logspace</span><span class="p">(</span><span class="o">-</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1000</span><span class="p">)</span>  <span class="c1"># from 0.001 to 10 Mpc/h</span>
+<span class="n">rho_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">r_array</span><span class="p">)</span> <span class="o">*</span> <span class="mf">1e7</span>  <span class="c1"># constant density</span>
+
+<span class="c1"># Calculate cumulative mass at a specific radius</span>
+<span class="n">radius</span> <span class="o">=</span> <span class="mf">0.5</span>  <span class="c1"># Mpc/h</span>
+<span class="n">mass</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">cumul_mass_single</span><span class="p">(</span><span class="n">radius</span><span class="p">,</span> <span class="n">rho_array</span><span class="p">,</span> <span class="n">r_array</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Mass within </span><span class="si">{</span><span class="n">radius</span><span class="si">}</span><span class="s2"> Mpc/h: </span><span class="si">{</span><span class="n">mass</span><span class="si">:</span><span class="s2">.2e</span><span class="si">}</span><span class="s2"> Msun/h&quot;</span><span class="p">)</span>
+
+<span class="c1"># Calculate cumulative mass profile</span>
+<span class="n">masses</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">cumul_mass</span><span class="p">(</span><span class="n">r_array</span><span class="p">,</span> <span class="n">rho_array</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Total mass: </span><span class="si">{</span><span class="n">masses</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s2">.2e</span><span class="si">}</span><span class="s2"> Msun/h&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="component-normalization">
+<h3>Component Normalization<a class="headerlink" href="#component-normalization" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">BCM</span> <span class="kn">import</span> <span class="n">utils</span>
+<span class="kn">from</span> <span class="nn">BCM</span> <span class="kn">import</span> <span class="n">density_profiles</span> <span class="k">as</span> <span class="n">dp</span>
+
+<span class="c1"># Normalize a density component to contain a specified mass</span>
+<span class="n">r_s</span> <span class="o">=</span> <span class="mf">0.2</span>  <span class="c1"># Scale radius in Mpc/h</span>
+<span class="n">r200</span> <span class="o">=</span> <span class="mf">1.0</span>  <span class="c1"># Virial radius in Mpc/h</span>
+<span class="n">M200</span> <span class="o">=</span> <span class="mf">1e14</span>  <span class="c1"># Msun/h</span>
+
+<span class="c1"># Get normalization factor for an NFW profile</span>
+<span class="n">norm</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">normalize_component</span><span class="p">(</span>
+    <span class="n">dp</span><span class="o">.</span><span class="n">rho_nfw</span><span class="p">,</span>         <span class="c1"># Density function</span>
+    <span class="p">(</span><span class="n">r_s</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mi">5</span><span class="o">*</span><span class="n">r200</span><span class="p">),</span> <span class="c1"># Arguments: r_s, rho0=1.0, r_tr=5*r200</span>
+    <span class="mf">0.8</span> <span class="o">*</span> <span class="n">M200</span><span class="p">,</span>         <span class="c1"># Target mass (80% of M200)</span>
+    <span class="n">r200</span>                <span class="c1"># Integration radius</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Normalization factor: </span><span class="si">{</span><span class="n">norm</span><span class="si">:</span><span class="s2">.2e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="simulations.html" class="btn btn-neutral float-left" title="Simulations" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Max Rauter.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

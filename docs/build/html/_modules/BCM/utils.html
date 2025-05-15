@@ -1,0 +1,966 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BCM.utils &mdash; Baryonic Correction Model</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../_static/custom.css" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=a264681e"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Baryonic_Correction_Model
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/index.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Baryonic_Correction_Model</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">BCM.utils</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for BCM.utils</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">scipy.integrate</span> <span class="kn">import</span> <span class="n">quad</span>
+<span class="kn">from</span> <span class="nn">scipy.optimize</span> <span class="kn">import</span> <span class="n">brentq</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">from</span> <span class="nn">tqdm</span> <span class="kn">import</span> <span class="n">tqdm</span>
+
+<div class="viewcode-block" id="calc_concentration">
+<a class="viewcode-back" href="../../api/utils.html#BCM.utils.calc_concentration">[docs]</a>
+<span class="k">def</span> <span class="nf">calc_concentration</span><span class="p">(</span><span class="n">M200</span><span class="p">,</span> <span class="n">z</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculate halo concentration using the Duffy et al. (2008) relation.</span>
+<span class="sd">    </span>
+<span class="sd">    This function uses the concentration-mass relation for relaxed halos from </span>
+<span class="sd">    Duffy et al. 2008 to determine the concentration parameter of a dark matter halo.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    M200 : float</span>
+<span class="sd">        Halo mass M_200 in Msun/h (solar masses divided by the Hubble parameter)</span>
+<span class="sd">    z : float</span>
+<span class="sd">        Redshift</span>
+<span class="sd">        </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float</span>
+<span class="sd">        Concentration parameter of the halo, constrained to be between 2.0 and 20.0</span>
+<span class="sd">    </span>
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    The relation is: c = A * ((M200 / Mpivot)**B) * (1 + z)**C</span>
+<span class="sd">    where A=5.71, B=-0.084, C=-0.47, and Mpivot=2e12 Msun/h</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">Mpivot</span> <span class="o">=</span> <span class="mf">2e12</span>  <span class="c1"># Msun/h</span>
+    <span class="n">A</span> <span class="o">=</span> <span class="mf">5.71</span>
+    <span class="n">B</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.084</span>
+    <span class="n">C</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.47</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="n">A</span> <span class="o">*</span> <span class="p">((</span><span class="n">M200</span> <span class="o">/</span> <span class="n">Mpivot</span><span class="p">)</span><span class="o">**</span><span class="n">B</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">z</span><span class="p">)</span><span class="o">**</span><span class="n">C</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">),</span> <span class="mf">20.0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">c</span></div>
+
+
+<div class="viewcode-block" id="calc_r_ej">
+<a class="viewcode-back" href="../../api/utils.html#BCM.utils.calc_r_ej">[docs]</a>
+<span class="k">def</span> <span class="nf">calc_r_ej</span><span class="p">(</span><span class="n">r200</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">mu</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">Omega_m</span><span class="o">=</span><span class="mf">0.3071</span><span class="p">,</span> <span class="n">h</span><span class="o">=</span><span class="mf">0.6777</span><span class="p">,</span> <span class="n">theta</span><span class="o">=</span><span class="mf">0.5</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculate the characteristic radius for ejected gas using Eqs. 2.22 and 2.23 from Schneider &amp; Teyssier 2016.</span>
+<span class="sd">    </span>
+<span class="sd">    The ejection radius is given by:</span>
+<span class="sd">    r_ej = mu * theta * r_200 * sqrt(delta_200)</span>
+<span class="sd">    </span>
+<span class="sd">    where:</span>
+<span class="sd">    - delta_200 = 200 * (H(z)/H0)² * (1+z)³ / Omega_m</span>
+<span class="sd">    - theta is a free parameter (default 0.5 from Schneider 2016)</span>
+<span class="sd">    - mu is a scaling factor for the escape radius (default 0.5)</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    r200 : float</span>
+<span class="sd">        Halo radius r_200 in Mpc/h</span>
+<span class="sd">    z : float, optional</span>
+<span class="sd">        Redshift, defaults to 0</span>
+<span class="sd">    mu : float, optional</span>
+<span class="sd">        Scaling factor for escape radius, defaults to 0.5</span>
+<span class="sd">    Omega_m : float, optional</span>
+<span class="sd">        Matter density parameter at z=0, defaults to 0.3071</span>
+<span class="sd">    h : float, optional</span>
+<span class="sd">        Hubble constant in units of 100 km/s/Mpc, defaults to 0.6777</span>
+<span class="sd">    theta : float, optional</span>
+<span class="sd">        Free parameter, default=0.5 (from Schneider &amp; Teyssier 2016)</span>
+<span class="sd">        </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float</span>
+<span class="sd">        Ejection radius r_ej in Mpc/h</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">Omega_Lambda</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="n">Omega_m</span>
+    <span class="n">E_z</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">Omega_m</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">z</span><span class="p">)</span><span class="o">**</span><span class="mi">3</span> <span class="o">+</span> <span class="n">Omega_Lambda</span><span class="p">)</span>
+    <span class="n">delta_200</span> <span class="o">=</span> <span class="mf">200.0</span> <span class="o">*</span> <span class="n">E_z</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">z</span><span class="p">)</span><span class="o">**</span><span class="mi">3</span> <span class="o">/</span> <span class="n">Omega_m</span>
+    <span class="n">r_esc</span> <span class="o">=</span> <span class="n">theta</span> <span class="o">*</span> <span class="n">r200</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">delta_200</span><span class="p">)</span>
+    <span class="n">r_ej</span> <span class="o">=</span> <span class="n">r_esc</span> <span class="o">*</span> <span class="n">mu</span>
+    <span class="k">return</span> <span class="n">r_ej</span></div>
+
+
+<div class="viewcode-block" id="calc_r_ej2">
+<a class="viewcode-back" href="../../api/utils.html#BCM.utils.calc_r_ej2">[docs]</a>
+<span class="k">def</span> <span class="nf">calc_r_ej2</span><span class="p">(</span><span class="n">M200</span><span class="p">,</span> <span class="n">r200</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">Omega_m</span><span class="o">=</span><span class="mf">0.3071</span><span class="p">,</span> <span class="n">Omega_Lambda</span><span class="o">=</span><span class="mf">0.6929</span><span class="p">,</span> <span class="n">h</span><span class="o">=</span><span class="mf">0.6777</span><span class="p">,</span> <span class="n">theta</span><span class="o">=</span><span class="mf">4.0</span><span class="p">,</span> <span class="n">delta_0</span><span class="o">=</span><span class="mf">420.0</span><span class="p">,</span> <span class="n">M_ej0</span><span class="o">=</span><span class="mf">1.5e12</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculate the characteristic radius for ejected gas using Eqs. 2.22 and 2.23 from Schneider 2015.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    M200 : float</span>
+<span class="sd">        Halo mass M_200 in Msun/h</span>
+<span class="sd">    r200 : float</span>
+<span class="sd">        Halo radius r_200 in Mpc/h</span>
+<span class="sd">    z : float, optional</span>
+<span class="sd">        Redshift, defaults to 0</span>
+<span class="sd">    Omega_m : float, optional</span>
+<span class="sd">        Matter density parameter at z=0, defaults to 0.3071</span>
+<span class="sd">    Omega_Lambda : float, optional</span>
+<span class="sd">        Dark energy density parameter at z=0, defaults to 0.6929</span>
+<span class="sd">    h : float, optional</span>
+<span class="sd">        Hubble constant in units of 100 km/s/Mpc, defaults to 0.6777</span>
+<span class="sd">    theta : float, optional</span>
+<span class="sd">        Free parameter, default=4.0</span>
+<span class="sd">    delta_0 : float, optional</span>
+<span class="sd">        Characteristic density parameter, default=420.0</span>
+<span class="sd">    M_ej0 : float, optional</span>
+<span class="sd">        Characteristic ejected mass, default=1.5e12 Msun/h</span>
+<span class="sd">    </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float</span>
+<span class="sd">        Ejection radius r_ej in Mpc/h</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">abundance_fractions</span> <span class="k">as</span> <span class="n">fr</span>
+    <span class="n">fbar</span> <span class="o">=</span> <span class="n">Omega_m</span> <span class="o">/</span> <span class="p">(</span><span class="n">Omega_m</span> <span class="o">+</span> <span class="n">Omega_Lambda</span><span class="p">)</span>
+    <span class="n">f_bgas_val</span> <span class="o">=</span> <span class="n">fr</span><span class="o">.</span><span class="n">f_bgas</span><span class="p">(</span><span class="n">M200</span><span class="p">,</span> <span class="n">fbar</span><span class="p">,</span> <span class="n">z</span><span class="p">)</span>
+    <span class="n">f_cgal_val</span> <span class="o">=</span> <span class="n">fr</span><span class="o">.</span><span class="n">f_cgal</span><span class="p">(</span><span class="n">M200</span><span class="p">,</span> <span class="n">z</span><span class="p">)</span>
+    <span class="n">f_egas_val</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">fbar</span> <span class="o">-</span> <span class="n">f_bgas_val</span> <span class="o">-</span> <span class="n">f_cgal_val</span><span class="p">)</span>
+    <span class="n">M_ej</span> <span class="o">=</span> <span class="n">f_egas_val</span> <span class="o">*</span> <span class="n">M200</span>
+    <span class="n">rho_crit_0</span> <span class="o">=</span> <span class="mf">2.775e11</span>
+    <span class="n">E_z</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">Omega_m</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">z</span><span class="p">)</span><span class="o">**</span><span class="mi">3</span> <span class="o">+</span> <span class="n">Omega_Lambda</span><span class="p">)</span>
+    <span class="n">rho_crit_z</span> <span class="o">=</span> <span class="n">rho_crit_0</span> <span class="o">*</span> <span class="n">E_z</span><span class="o">**</span><span class="mi">2</span>
+    <span class="n">rho_m_z</span> <span class="o">=</span> <span class="n">Omega_m</span> <span class="o">*</span> <span class="n">rho_crit_0</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">z</span><span class="p">)</span><span class="o">**</span><span class="mi">3</span>
+    <span class="n">delta_200</span> <span class="o">=</span> <span class="mf">200.0</span> <span class="o">*</span> <span class="n">rho_crit_z</span> <span class="o">/</span> <span class="n">rho_m_z</span>
+    <span class="k">if</span> <span class="n">M_ej</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">r_ej</span> <span class="o">=</span> <span class="n">theta</span> <span class="o">*</span> <span class="n">r200</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">M_ej</span> <span class="o">/</span> <span class="n">M_ej0</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">delta_0</span> <span class="o">/</span> <span class="n">delta_200</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">r_ej</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">r200</span>
+    <span class="k">return</span> <span class="n">r_ej</span></div>
+
+
+<div class="viewcode-block" id="calc_R_h">
+<a class="viewcode-back" href="../../api/utils.html#BCM.utils.calc_R_h">[docs]</a>
+<span class="k">def</span> <span class="nf">calc_R_h</span><span class="p">(</span><span class="n">M200</span><span class="p">,</span> <span class="n">r200</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculate the half-light radius of the central galaxy based on halo mass.</span>
+<span class="sd">    </span>
+<span class="sd">    Uses observational scaling relations to determine a more accurate half-light radius</span>
+<span class="sd">    that varies with halo mass. For low-mass halos, R_h is relatively larger compared </span>
+<span class="sd">    to r200, while for high-mass halos it&#39;s relatively smaller.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    M200 : float</span>
+<span class="sd">        Halo mass in Msun/h</span>
+<span class="sd">    r200 : float</span>
+<span class="sd">        Halo radius in Mpc/h</span>
+<span class="sd">        </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float</span>
+<span class="sd">        Half-light radius R_h in Mpc/h</span>
+<span class="sd">    </span>
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    The base relation is R_h = 0.015 * r200, which is then scaled based on halo mass.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">R_h_base</span> <span class="o">=</span> <span class="mf">0.015</span> <span class="o">*</span> <span class="n">r200</span>
+    <span class="k">if</span> <span class="n">M200</span> <span class="o">&lt;</span> <span class="mf">1e12</span><span class="p">:</span>
+        <span class="n">mass_factor</span> <span class="o">=</span> <span class="p">(</span><span class="n">M200</span> <span class="o">/</span> <span class="mf">1e12</span><span class="p">)</span><span class="o">**</span><span class="p">(</span><span class="o">-</span><span class="mf">0.1</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">M200</span> <span class="o">&gt;</span> <span class="mf">1e14</span><span class="p">:</span>
+        <span class="n">mass_factor</span> <span class="o">=</span> <span class="p">(</span><span class="n">M200</span> <span class="o">/</span> <span class="mf">1e14</span><span class="p">)</span><span class="o">**</span><span class="p">(</span><span class="o">-</span><span class="mf">0.05</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">mass_factor</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="k">return</span> <span class="n">R_h_base</span> <span class="o">*</span> <span class="n">mass_factor</span></div>
+
+
+<div class="viewcode-block" id="bracket_rho0">
+<a class="viewcode-back" href="../../api/utils.html#BCM.utils.bracket_rho0">[docs]</a>
+<span class="k">def</span> <span class="nf">bracket_rho0</span><span class="p">(</span><span class="n">M_target</span><span class="p">,</span> <span class="n">r_s</span><span class="p">,</span> <span class="n">r_tr</span><span class="p">,</span> <span class="n">r200</span><span class="p">,</span> <span class="n">r_max</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Solve for the NFW density normalization (rho0) that produces a specified enclosed mass.</span>
+<span class="sd">    </span>
+<span class="sd">    Uses the Brent method to find the value of rho0 such that the enclosed mass</span>
+<span class="sd">    at radius r_max equals M_target.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    M_target : float</span>
+<span class="sd">        Target enclosed mass at r_max in Msun/h</span>
+<span class="sd">    r_s : float</span>
+<span class="sd">        Scale radius of the NFW profile in Mpc/h</span>
+<span class="sd">    r_tr : float</span>
+<span class="sd">        Truncation radius in Mpc/h (can be np.inf for untruncated profiles)</span>
+<span class="sd">    r200 : float</span>
+<span class="sd">        Halo radius r_200 in Mpc/h</span>
+<span class="sd">    r_max : float, optional</span>
+<span class="sd">        Radius at which the enclosed mass should match M_target, defaults to r200</span>
+<span class="sd">        </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float</span>
+<span class="sd">        The normalized density parameter rho0 for the NFW profile</span>
+<span class="sd">        </span>
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        If the root finding algorithm cannot bracket the solution</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">density_profiles</span> <span class="k">as</span> <span class="n">dp</span>
+    <span class="k">if</span> <span class="n">r_max</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">r_max</span> <span class="o">=</span> <span class="n">r200</span>
+    <span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">rho0</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">dp</span><span class="o">.</span><span class="n">mass_profile</span><span class="p">(</span><span class="n">r_max</span><span class="p">,</span> <span class="n">dp</span><span class="o">.</span><span class="n">rho_nfw</span><span class="p">,</span> <span class="n">r_s</span><span class="o">=</span><span class="n">r_s</span><span class="p">,</span> <span class="n">rho0</span><span class="o">=</span><span class="n">rho0</span><span class="p">,</span> <span class="n">r_tr</span><span class="o">=</span><span class="n">r_tr</span><span class="p">)</span> <span class="o">-</span> <span class="n">M_target</span>
+    <span class="n">low</span><span class="p">,</span> <span class="n">high</span> <span class="o">=</span> <span class="mf">1e-12</span><span class="p">,</span> <span class="mf">1e-8</span>
+    <span class="n">factor</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">50</span><span class="p">):</span>
+        <span class="n">high</span> <span class="o">*=</span> <span class="n">factor</span>
+        <span class="k">if</span> <span class="n">f</span><span class="p">(</span><span class="n">low</span><span class="p">)</span> <span class="o">*</span> <span class="n">f</span><span class="p">(</span><span class="n">high</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">break</span>
+    <span class="k">if</span> <span class="n">f</span><span class="p">(</span><span class="n">low</span><span class="p">)</span> <span class="o">*</span> <span class="n">f</span><span class="p">(</span><span class="n">high</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Could not bracket root for rho0.&quot;</span><span class="p">)</span>
+    <span class="n">rho0_solved</span> <span class="o">=</span> <span class="n">brentq</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">low</span><span class="p">,</span> <span class="n">high</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">rho0_solved</span></div>
+
+
+<div class="viewcode-block" id="normalize_component_total">
+<a class="viewcode-back" href="../../api/utils.html#BCM.utils.normalize_component_total">[docs]</a>
+<span class="k">def</span> <span class="nf">normalize_component_total</span><span class="p">(</span><span class="n">density_func</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">M200_loc</span><span class="p">,</span> <span class="n">r200_loc</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Normalize a density function so that its total mass out to a large radius equals M_target.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    density_func : callable</span>
+<span class="sd">        The density function to normalize</span>
+<span class="sd">    args : tuple</span>
+<span class="sd">        Arguments to pass to the density function</span>
+<span class="sd">    M200_loc : float</span>
+<span class="sd">        Target mass (M200) in Msun/h</span>
+<span class="sd">    r200_loc : float</span>
+<span class="sd">        Halo radius r200 in Mpc/h, used to determine the maximum integration radius</span>
+<span class="sd">        </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float</span>
+<span class="sd">        The normalization factor to apply to the density function</span>
+<span class="sd">    </span>
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    The function integrates the unnormalized density profile out to 100*r200_loc</span>
+<span class="sd">    to approximate the total mass to infinity.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">density_profiles</span> <span class="k">as</span> <span class="n">dp</span>
+    <span class="k">def</span> <span class="nf">unnorm_func</span><span class="p">(</span><span class="n">r</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">density_func</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
+    <span class="n">r_max</span> <span class="o">=</span> <span class="mi">100</span> <span class="o">*</span> <span class="n">r200_loc</span>
+    <span class="n">unnorm_mass</span> <span class="o">=</span> <span class="n">dp</span><span class="o">.</span><span class="n">mass_profile</span><span class="p">(</span><span class="n">r_max</span><span class="p">,</span> <span class="n">unnorm_func</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">M200_loc</span> <span class="o">/</span> <span class="n">unnorm_mass</span></div>
+
+
+<div class="viewcode-block" id="normalize_component">
+<a class="viewcode-back" href="../../api/utils.html#BCM.utils.normalize_component">[docs]</a>
+<span class="k">def</span> <span class="nf">normalize_component</span><span class="p">(</span><span class="n">density_func</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">M200_loc</span><span class="p">,</span> <span class="n">r200_loc</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculate normalization factor to make a density component contain M200 within r200.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    density_func : callable</span>
+<span class="sd">        The density function to normalize</span>
+<span class="sd">    args : tuple</span>
+<span class="sd">        Arguments to pass to the density function</span>
+<span class="sd">    M200_loc : float</span>
+<span class="sd">        Target mass (M200) in Msun/h to contain within r200</span>
+<span class="sd">    r200_loc : float</span>
+<span class="sd">        Halo radius r200 in Mpc/h</span>
+<span class="sd">        </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float</span>
+<span class="sd">        The normalization factor to apply to the density function</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">density_profiles</span> <span class="k">as</span> <span class="n">dp</span>
+    <span class="k">def</span> <span class="nf">unnorm_func</span><span class="p">(</span><span class="n">r</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">density_func</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
+    <span class="n">r_max</span> <span class="o">=</span> <span class="n">r200_loc</span>
+    <span class="n">unnorm_mass</span> <span class="o">=</span> <span class="n">dp</span><span class="o">.</span><span class="n">mass_profile</span><span class="p">(</span><span class="n">r_max</span><span class="p">,</span> <span class="n">unnorm_func</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">M200_loc</span> <span class="o">/</span> <span class="n">unnorm_mass</span></div>
+
+
+<div class="viewcode-block" id="cumul_mass">
+<a class="viewcode-back" href="../../api/utils.html#BCM.utils.cumul_mass">[docs]</a>
+<span class="k">def</span> <span class="nf">cumul_mass</span><span class="p">(</span><span class="n">r_array</span><span class="p">,</span> <span class="n">rho_array</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculate the cumulative mass profile from a density profile.</span>
+<span class="sd">    </span>
+<span class="sd">    Integrates the density profile to compute the enclosed mass at each radius.</span>
+<span class="sd">    Uses adaptive techniques to ensure numerical stability near the origin.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    r_array : array_like</span>
+<span class="sd">        Array of radii in Mpc/h</span>
+<span class="sd">    rho_array : array_like</span>
+<span class="sd">        Array of density values in Msun/h/Mpc³, corresponding to r_array</span>
+<span class="sd">        </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    array_like</span>
+<span class="sd">        Array of cumulative masses in Msun/h, corresponding to each radius in r_array</span>
+<span class="sd">    </span>
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    For improved numerical stability, the integration is performed using logarithmic</span>
+<span class="sd">    spacing near the origin and adaptive methods for different radius ranges.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">mass</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">r_array</span><span class="p">)</span>
+    <span class="n">r_min</span> <span class="o">=</span> <span class="mf">1e-8</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">r</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">r_array</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">r</span> <span class="o">&lt;</span> <span class="n">r_min</span><span class="p">:</span>
+            <span class="n">mass</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+            <span class="k">continue</span>
+        <span class="k">if</span> <span class="n">r</span> <span class="o">&gt;</span> <span class="mi">10</span> <span class="o">*</span> <span class="n">r_min</span><span class="p">:</span>
+            <span class="n">integration_points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logspace</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">r_min</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">r</span><span class="p">),</span> <span class="mi">30</span><span class="p">)</span>
+            <span class="n">segment_masses</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">integration_points</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">integration_points</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+                <span class="n">r1</span><span class="p">,</span> <span class="n">r2</span> <span class="o">=</span> <span class="n">integration_points</span><span class="p">[</span><span class="n">j</span><span class="p">],</span> <span class="n">integration_points</span><span class="p">[</span><span class="n">j</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+                <span class="n">segment_r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">r1</span><span class="p">,</span> <span class="n">r2</span><span class="p">,</span> <span class="mi">20</span><span class="p">)</span>
+                <span class="n">segment_rho</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span><span class="n">segment_r</span><span class="p">,</span> <span class="n">r_array</span><span class="p">,</span> <span class="n">rho_array</span><span class="p">)</span>
+                <span class="n">segment_integrand</span> <span class="o">=</span> <span class="mi">4</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">segment_r</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">segment_rho</span>
+                <span class="n">segment_masses</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">trapz</span><span class="p">(</span><span class="n">segment_integrand</span> <span class="o">*</span> <span class="n">segment_r</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">segment_r</span><span class="p">))</span>
+            <span class="n">mass</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">segment_masses</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">integrand</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="mi">4</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">s</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">r_array</span><span class="p">,</span> <span class="n">rho_array</span><span class="p">)</span>
+            <span class="n">mass</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">_</span> <span class="o">=</span> <span class="n">quad</span><span class="p">(</span><span class="n">integrand</span><span class="p">,</span> <span class="n">r_min</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span> <span class="n">epsabs</span><span class="o">=</span><span class="mf">1e-8</span><span class="p">,</span> <span class="n">epsrel</span><span class="o">=</span><span class="mf">1e-8</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">mass</span></div>
+
+
+<div class="viewcode-block" id="cumul_mass_single">
+<a class="viewcode-back" href="../../api/utils.html#BCM.utils.cumul_mass_single">[docs]</a>
+<span class="k">def</span> <span class="nf">cumul_mass_single</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">rho_array</span><span class="p">,</span> <span class="n">r_array</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculate cumulative mass from a density profile for a single radius value.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    r : float</span>
+<span class="sd">        The radius at which to compute the cumulative mass in Mpc/h</span>
+<span class="sd">    rho_array : array_like</span>
+<span class="sd">        The density profile values in Msun/h/Mpc³</span>
+<span class="sd">    r_array : array_like</span>
+<span class="sd">        The corresponding radius values for the density profile in Mpc/h</span>
+<span class="sd">        </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float</span>
+<span class="sd">        The cumulative mass within radius r in Msun/h</span>
+<span class="sd">    </span>
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    Similar to cumul_mass but optimized for computing the mass at a single radius value.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">r_min</span> <span class="o">=</span> <span class="mf">1e-8</span>
+    <span class="k">if</span> <span class="n">r</span> <span class="o">&lt;</span> <span class="n">r_min</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mf">0.0</span>
+    <span class="k">if</span> <span class="n">r</span> <span class="o">&gt;</span> <span class="mi">10</span> <span class="o">*</span> <span class="n">r_min</span><span class="p">:</span>
+        <span class="n">integration_points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logspace</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">r_min</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">r</span><span class="p">),</span> <span class="mi">30</span><span class="p">)</span>
+        <span class="n">segment_mass</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">integration_points</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">r1</span><span class="p">,</span> <span class="n">r2</span> <span class="o">=</span> <span class="n">integration_points</span><span class="p">[</span><span class="n">j</span><span class="p">],</span> <span class="n">integration_points</span><span class="p">[</span><span class="n">j</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+            <span class="n">segment_r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">r1</span><span class="p">,</span> <span class="n">r2</span><span class="p">,</span> <span class="mi">20</span><span class="p">)</span>
+            <span class="n">segment_rho</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span><span class="n">segment_r</span><span class="p">,</span> <span class="n">r_array</span><span class="p">,</span> <span class="n">rho_array</span><span class="p">)</span>
+            <span class="n">segment_integrand</span> <span class="o">=</span> <span class="mi">4</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">segment_r</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">segment_rho</span>
+            <span class="n">segment_mass</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">trapz</span><span class="p">(</span><span class="n">segment_integrand</span> <span class="o">*</span> <span class="n">segment_r</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">segment_r</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">segment_mass</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">integrand</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="mi">4</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">s</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">r_array</span><span class="p">,</span> <span class="n">rho_array</span><span class="p">)</span>
+        <span class="n">mass</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">quad</span><span class="p">(</span><span class="n">integrand</span><span class="p">,</span> <span class="n">r_min</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span> <span class="n">epsabs</span><span class="o">=</span><span class="mf">1e-8</span><span class="p">,</span> <span class="n">epsrel</span><span class="o">=</span><span class="mf">1e-8</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">mass</span></div>
+
+
+<div class="viewcode-block" id="plot_bcm_profiles">
+<a class="viewcode-back" href="../../api/utils.html#BCM.utils.plot_bcm_profiles">[docs]</a>
+<span class="k">def</span> <span class="nf">plot_bcm_profiles</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">save_path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create a three-panel plot of BCM density profiles, cumulative mass, and displacement.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    r_vals : array_like</span>
+<span class="sd">        Radius values in Mpc/h</span>
+<span class="sd">    components : dict</span>
+<span class="sd">        Dictionary containing the following components:</span>
+<span class="sd">            - M200 (float): Halo mass in Msun/h</span>
+<span class="sd">            - r200 (float): Halo radius in Mpc/h</span>
+<span class="sd">            - r_s (float): Scale radius in Mpc/h</span>
+<span class="sd">            - rho_dmo (array): DM-only density profile</span>
+<span class="sd">            - rho_bcm (array): Total BCM density profile</span>
+<span class="sd">            - rho_bkg (array): Background density values</span>
+<span class="sd">            - rdm (array): Relaxed DM density values (with fraction applied)</span>
+<span class="sd">            - bgas (array): Bound gas density values (with fraction applied)</span>
+<span class="sd">            - egas (array): Ejected gas density values (with fraction applied)</span>
+<span class="sd">            - cgal (array): Central galaxy density values (with fraction applied)</span>
+<span class="sd">            - M_dmo (array): DM-only cumulative mass profile</span>
+<span class="sd">            - M_rdm (array): Relaxed DM cumulative mass profile</span>
+<span class="sd">            - M_bgas (array): Bound gas cumulative mass profile</span>
+<span class="sd">            - M_egas (array): Ejected gas cumulative mass profile</span>
+<span class="sd">            - M_cgal (array): Central galaxy cumulative mass profile</span>
+<span class="sd">            - M_bcm (array): Total BCM cumulative mass profile</span>
+<span class="sd">            - M_bgk (array): Background cumulative mass values</span>
+<span class="sd">            - disp (array): Displacement function values</span>
+<span class="sd">    title : str, optional</span>
+<span class="sd">        Custom title for the figure, defaults to auto-generated title with M200</span>
+<span class="sd">    save_path : str, optional</span>
+<span class="sd">        Path to save the figure, if not provided the figure is not saved</span>
+<span class="sd">        </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    fig : matplotlib.figure.Figure</span>
+<span class="sd">        The matplotlib figure object</span>
+<span class="sd">    axes : array of matplotlib.axes.Axes</span>
+<span class="sd">        The array of axes objects</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">18</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
+    <span class="n">M200</span> <span class="o">=</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;M200&#39;</span><span class="p">]</span>
+    <span class="n">r200</span> <span class="o">=</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;r200&#39;</span><span class="p">]</span>
+    <span class="n">r_s</span> <span class="o">=</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;r_s&#39;</span><span class="p">]</span>
+    <span class="n">ax1</span> <span class="o">=</span> <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">ax1</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;rho_dmo&#39;</span><span class="p">],</span> <span class="s1">&#39;b-&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;NFW (DM-only)&#39;</span><span class="p">)</span>
+    <span class="n">ax1</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;rdm&#39;</span><span class="p">],</span> <span class="s1">&#39;b--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Relaxed DM (rdm)&#39;</span><span class="p">)</span>
+    <span class="n">ax1</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;bgas&#39;</span><span class="p">],</span> <span class="s1">&#39;g--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Bound gas (bgas)&#39;</span><span class="p">)</span>
+    <span class="n">ax1</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;egas&#39;</span><span class="p">],</span> <span class="s1">&#39;r--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Ejected gas (egas)&#39;</span><span class="p">)</span>
+    <span class="n">ax1</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;cgal&#39;</span><span class="p">],</span> <span class="s1">&#39;m--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Central galaxy (cgal)&#39;</span><span class="p">)</span>
+    <span class="n">ax1</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;rho_bkg&#39;</span><span class="p">],</span> <span class="s1">&#39;y--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Background&#39;</span><span class="p">)</span>
+    <span class="n">ax1</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;rho_bcm&#39;</span><span class="p">],</span> <span class="s1">&#39;r-&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Total bcm profile&#39;</span><span class="p">)</span>
+    <span class="n">ax1</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">r200</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;r200&#39;</span><span class="p">)</span>
+    <span class="n">ax1</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">r_s</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;r_s&#39;</span><span class="p">)</span>
+    <span class="n">ax1</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Radius [Mpc/h]&quot;</span><span class="p">)</span>
+    <span class="n">ax1</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Density [Msun/h/Mpc³]&quot;</span><span class="p">)</span>
+    <span class="n">ax1</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Density Profiles&quot;</span><span class="p">)</span>
+    <span class="n">ax1</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">([</span><span class="mf">1e-2</span><span class="p">,</span> <span class="mf">3e1</span><span class="p">])</span>
+    <span class="n">ax1</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">([</span><span class="mf">1e9</span><span class="p">,</span> <span class="mf">7e16</span><span class="p">])</span>
+    <span class="n">ax1</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+    <span class="n">ax1</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="n">which</span><span class="o">=</span><span class="s2">&quot;both&quot;</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s2">&quot;:&quot;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
+    <span class="n">ax2</span> <span class="o">=</span> <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">ax2</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;M_dmo&#39;</span><span class="p">],</span> <span class="s1">&#39;b-&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;NFW (DM-only)&#39;</span><span class="p">)</span>
+    <span class="n">ax2</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;M_rdm&#39;</span><span class="p">],</span> <span class="s1">&#39;b--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Relaxed DM (rdm)&#39;</span><span class="p">)</span>
+    <span class="n">ax2</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;M_bgas&#39;</span><span class="p">],</span> <span class="s1">&#39;g--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Bound gas (bgas)&#39;</span><span class="p">)</span>
+    <span class="n">ax2</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;M_egas&#39;</span><span class="p">],</span> <span class="s1">&#39;r--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Ejected gas (egas)&#39;</span><span class="p">)</span>
+    <span class="n">ax2</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;M_cgal&#39;</span><span class="p">],</span> <span class="s1">&#39;m--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Central galaxy (cgal)&#39;</span><span class="p">)</span>
+    <span class="n">ax2</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;M_bcm&#39;</span><span class="p">],</span> <span class="s1">&#39;r-&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Total bcm&#39;</span><span class="p">)</span>
+    <span class="n">ax2</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;M_bkg&#39;</span><span class="p">],</span> <span class="s1">&#39;y--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Background&#39;</span><span class="p">)</span>
+    <span class="n">ax2</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">r200</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;r200&#39;</span><span class="p">)</span>
+    <span class="n">ax2</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Radius [Mpc/h]&quot;</span><span class="p">)</span>
+    <span class="n">ax2</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Cumulative Mass [Msun/h]&quot;</span><span class="p">)</span>
+    <span class="n">ax2</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Cumulative Mass Profiles&quot;</span><span class="p">)</span>
+    <span class="n">ax2</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mf">1e-2</span><span class="p">,</span> <span class="mf">1e2</span><span class="p">)</span>
+    <span class="n">ax2</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mf">7e10</span><span class="p">,</span> <span class="mf">7e15</span><span class="p">)</span>
+    <span class="n">ax2</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+    <span class="n">ax2</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="n">which</span><span class="o">=</span><span class="s2">&quot;both&quot;</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s2">&quot;:&quot;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
+    <span class="n">disp</span> <span class="o">=</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;disp&#39;</span><span class="p">]</span>
+    <span class="n">disp_pos</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">disp</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="n">disp</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">disp_neg</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">disp</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">,</span> <span class="n">disp</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">ax3</span> <span class="o">=</span> <span class="n">axes</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">ax3</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">disp_pos</span><span class="p">),</span> <span class="s1">&#39;b-&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;positive&#39;</span><span class="p">)</span>
+    <span class="n">ax3</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">disp_neg</span><span class="p">),</span> <span class="s1">&#39;b--&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;negative&#39;</span><span class="p">)</span>
+    <span class="n">ax3</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">r200</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;r200&#39;</span><span class="p">)</span>
+    <span class="n">ax3</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Radius [Mpc/h]&quot;</span><span class="p">)</span>
+    <span class="n">ax3</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Displacement [Mpc/h]&quot;</span><span class="p">)</span>
+    <span class="n">ax3</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Displacement Function&quot;</span><span class="p">)</span>
+    <span class="n">ax3</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mf">1e-4</span><span class="p">,</span> <span class="mf">1.1</span><span class="p">)</span>
+    <span class="n">ax3</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mf">1e-2</span><span class="p">,</span> <span class="mf">1e2</span><span class="p">)</span>
+    <span class="n">ax3</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="n">which</span><span class="o">=</span><span class="s2">&quot;both&quot;</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s2">&quot;:&quot;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
+    <span class="n">ax3</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">title</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">title</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Baryonic Correction Model for M200 = </span><span class="si">{</span><span class="n">M200</span><span class="si">:</span><span class="s2">.2e</span><span class="si">}</span><span class="s2"> Msun/h&quot;</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">14</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">(</span><span class="n">rect</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mf">0.96</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">save_path</span><span class="p">:</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">save_path</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s1">&#39;tight&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span></div>
+
+
+<span class="k">def</span> <span class="nf">verify_schneider</span><span class="p">(</span><span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Verify that the implementation matches Schneider &amp; Teyssier 2016 Fig 1 by plotting cases (a, b, c).</span>
+<span class="sd">    </span>
+<span class="sd">    Creates a figure showing density profiles, cumulative mass profiles, and displacement functions</span>
+<span class="sd">    for the three test cases from the original paper, allowing for verification of the implementation.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    verbose : bool, optional</span>
+<span class="sd">        Whether to print detailed information during calculations, defaults to False</span>
+<span class="sd">        </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None</span>
+<span class="sd">        The function saves the output figure as &quot;schneider_match.png&quot;</span>
+<span class="sd">    </span>
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    This function reproduces Figure 1 from Schneider &amp; Teyssier 2016 for verification purposes.</span>
+<span class="sd">    It uses the default parameters and the case-specific parameters defined in parameters.py.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">BCM</span> <span class="kn">import</span> <span class="n">simulations</span> <span class="k">as</span> <span class="n">sim</span>
+    <span class="kn">from</span> <span class="nn">.parameters</span> <span class="kn">import</span> <span class="n">DEFAULTS</span><span class="p">,</span> <span class="n">CASE_PARAMS</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Verifying match to Schneider &amp; Teyssier 2016 Fig 1&quot;</span><span class="p">)</span>
+    <span class="n">cases</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">CASE_PARAMS</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cases</span><span class="p">),</span> <span class="mi">3</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">18</span><span class="p">,</span> <span class="mi">18</span><span class="p">))</span>
+    <span class="n">M200</span> <span class="o">=</span> <span class="n">DEFAULTS</span><span class="p">[</span><span class="s1">&#39;M200&#39;</span><span class="p">]</span>
+    <span class="n">r200</span> <span class="o">=</span> <span class="n">DEFAULTS</span><span class="p">[</span><span class="s1">&#39;r200&#39;</span><span class="p">]</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="n">DEFAULTS</span><span class="p">[</span><span class="s1">&#39;c&#39;</span><span class="p">]</span>
+    <span class="n">h</span> <span class="o">=</span> <span class="n">DEFAULTS</span><span class="p">[</span><span class="s1">&#39;h&#39;</span><span class="p">]</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">DEFAULTS</span><span class="p">[</span><span class="s1">&#39;z&#39;</span><span class="p">]</span>
+    <span class="n">Omega_m</span> <span class="o">=</span> <span class="n">DEFAULTS</span><span class="p">[</span><span class="s1">&#39;Omega_m&#39;</span><span class="p">]</span>
+    <span class="n">r_ej</span> <span class="o">=</span> <span class="n">DEFAULTS</span><span class="p">[</span><span class="s1">&#39;r_ej_factor&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="n">r200</span>
+    <span class="n">R_h</span> <span class="o">=</span> <span class="n">DEFAULTS</span><span class="p">[</span><span class="s1">&#39;R_h_factor&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="n">r200</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">case</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">cases</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Paper case (</span><span class="si">{}</span><span class="s2">)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">case</span><span class="p">))</span>
+        <span class="n">case_params</span> <span class="o">=</span> <span class="n">CASE_PARAMS</span><span class="p">[</span><span class="n">case</span><span class="p">]</span>
+        <span class="n">f_rdm</span> <span class="o">=</span> <span class="n">case_params</span><span class="p">[</span><span class="s1">&#39;f_rdm&#39;</span><span class="p">]</span>
+        <span class="n">bcm</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">CAMELSReader</span><span class="p">(</span><span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">)</span>
+        <span class="n">bcm</span><span class="o">.</span><span class="n">r_ej</span> <span class="o">=</span> <span class="n">r_ej</span>
+        <span class="n">bcm</span><span class="o">.</span><span class="n">R_h</span> <span class="o">=</span> <span class="n">R_h</span>
+        <span class="n">bcm</span><span class="o">.</span><span class="n">fbar</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">f_rdm</span>
+        <span class="n">bcm</span><span class="o">.</span><span class="n">init_calculations</span><span class="p">(</span>
+            <span class="n">M200</span><span class="o">=</span><span class="n">M200</span><span class="p">,</span>
+            <span class="n">r200</span><span class="o">=</span><span class="n">r200</span><span class="p">,</span>
+            <span class="n">c</span><span class="o">=</span><span class="n">c</span><span class="p">,</span>
+            <span class="n">h</span><span class="o">=</span><span class="n">h</span><span class="p">,</span>
+            <span class="n">z</span><span class="o">=</span><span class="n">z</span><span class="p">,</span>
+            <span class="n">Omega_m</span><span class="o">=</span><span class="n">Omega_m</span><span class="p">,</span>
+            <span class="n">f</span><span class="o">=</span><span class="n">case_params</span><span class="p">,</span>
+            <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span>
+        <span class="p">)</span>
+        <span class="n">components</span> <span class="o">=</span> <span class="n">bcm</span><span class="o">.</span><span class="n">components</span>
+        <span class="n">r_vals</span> <span class="o">=</span> <span class="n">bcm</span><span class="o">.</span><span class="n">r_vals</span>
+        <span class="n">r_s</span> <span class="o">=</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;r_s&#39;</span><span class="p">]</span>
+        <span class="n">disp</span> <span class="o">=</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;disp&#39;</span><span class="p">]</span>
+        <span class="n">ax1</span> <span class="o">=</span> <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;rho_dmo&#39;</span><span class="p">],</span> <span class="s1">&#39;b-&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;DM-only (NFW+Bkg)&#39;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;rdm&#39;</span><span class="p">],</span> <span class="s1">&#39;b--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Relaxed DM (rdm)&#39;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;bgas&#39;</span><span class="p">],</span> <span class="s1">&#39;g--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Bound gas (bgas)&#39;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;egas&#39;</span><span class="p">],</span> <span class="s1">&#39;r--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Ejected gas (egas)&#39;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;cgal&#39;</span><span class="p">],</span> <span class="s1">&#39;m--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Central galaxy (cgal)&#39;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;rho_bkg&#39;</span><span class="p">],</span> <span class="s1">&#39;y--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Background&#39;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;rho_bcm&#39;</span><span class="p">],</span> <span class="s1">&#39;r-&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Total bcm profile&#39;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">r200</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;r200&#39;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">r_s</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;r_s&#39;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Radius [Mpc/h]&quot;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Density [Msun/h/Mpc³]&quot;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Density Profiles&quot;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">([</span><span class="mf">1e-2</span><span class="p">,</span> <span class="mf">3e1</span><span class="p">])</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">([</span><span class="mf">2e9</span><span class="p">,</span> <span class="mf">7e16</span><span class="p">])</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="n">which</span><span class="o">=</span><span class="s2">&quot;both&quot;</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s2">&quot;:&quot;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
+        <span class="n">ax2</span> <span class="o">=</span> <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span>
+        <span class="n">ax2</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;M_dmo&#39;</span><span class="p">],</span> <span class="s1">&#39;b-&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;DM-only (NFW+Bkg)&#39;</span><span class="p">)</span>
+        <span class="n">ax2</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;M_rdm&#39;</span><span class="p">],</span> <span class="s1">&#39;b--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Relaxed DM (rdm)&#39;</span><span class="p">)</span>
+        <span class="n">ax2</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;M_bgas&#39;</span><span class="p">],</span> <span class="s1">&#39;g--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Bound gas (bgas)&#39;</span><span class="p">)</span>
+        <span class="n">ax2</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;M_egas&#39;</span><span class="p">],</span> <span class="s1">&#39;r--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Ejected gas (egas)&#39;</span><span class="p">)</span>
+        <span class="n">ax2</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;M_cgal&#39;</span><span class="p">],</span> <span class="s1">&#39;m--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Central galaxy (cgal)&#39;</span><span class="p">)</span>
+        <span class="n">ax2</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;M_bcm&#39;</span><span class="p">],</span> <span class="s1">&#39;r-&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Total bcm&#39;</span><span class="p">)</span>
+        <span class="n">ax2</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;M_bkg&#39;</span><span class="p">],</span> <span class="s1">&#39;y--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Background&#39;</span><span class="p">)</span>
+        <span class="n">ax2</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">r200</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;r200&#39;</span><span class="p">)</span>
+        <span class="n">ax2</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Radius [Mpc/h]&quot;</span><span class="p">)</span>
+        <span class="n">ax2</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Cumulative Mass [Msun/h]&quot;</span><span class="p">)</span>
+        <span class="n">ax2</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Cumulative Mass Profiles&quot;</span><span class="p">)</span>
+        <span class="n">ax2</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mf">1e-2</span><span class="p">,</span> <span class="mf">1e2</span><span class="p">)</span>
+        <span class="n">ax2</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mf">7e11</span><span class="p">,</span> <span class="mf">7e15</span><span class="p">)</span>
+        <span class="n">ax2</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+        <span class="n">ax2</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="n">which</span><span class="o">=</span><span class="s2">&quot;both&quot;</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s2">&quot;:&quot;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
+        <span class="n">ax3</span> <span class="o">=</span> <span class="n">axes</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span>
+        <span class="n">disp_pos</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">disp</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="n">disp</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">disp_neg</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">disp</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">,</span> <span class="n">disp</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">ax3</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">disp_pos</span><span class="p">),</span> <span class="s1">&#39;b-&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;positive&#39;</span><span class="p">)</span>
+        <span class="n">ax3</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">disp_neg</span><span class="p">),</span> <span class="s1">&#39;b--&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;negative&#39;</span><span class="p">)</span>
+        <span class="n">ax3</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">r200</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;r200&#39;</span><span class="p">)</span>
+        <span class="n">ax3</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Radius [Mpc/h]&quot;</span><span class="p">)</span>
+        <span class="n">ax3</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Displacement [Mpc/h]&quot;</span><span class="p">)</span>
+        <span class="n">ax3</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Displacement Function&quot;</span><span class="p">)</span>
+        <span class="n">ax3</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mf">1e-4</span><span class="p">,</span> <span class="mf">1.1</span><span class="p">)</span>
+        <span class="n">ax3</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mf">1e-2</span><span class="p">,</span> <span class="mf">1e2</span><span class="p">)</span>
+        <span class="n">ax3</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="n">which</span><span class="o">=</span><span class="s2">&quot;both&quot;</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s2">&quot;:&quot;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
+        <span class="n">ax3</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s2">&quot;Comparison of Cases (a, b, c) from Schneider &amp; Teyssier 2016&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">(</span><span class="n">rect</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mf">0.96</span><span class="p">])</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s2">&quot;schneider_match.png&quot;</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s1">&#39;tight&#39;</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">calc_power_spectrum</span><span class="p">(</span><span class="n">positions</span><span class="p">,</span> <span class="n">box_size</span><span class="p">,</span> <span class="n">mesh_size</span><span class="o">=</span><span class="mi">256</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculate the matter power spectrum using FFT and NGP mass assignment.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    positions : array_like</span>
+<span class="sd">        (N, 3) array of particle positions in the simulation box</span>
+<span class="sd">    box_size : float</span>
+<span class="sd">        Size of the simulation box in Mpc/h</span>
+<span class="sd">    mesh_size : int, optional</span>
+<span class="sd">        Number of cells along each dimension for the density grid, defaults to 256</span>
+<span class="sd">        </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    k_vals : array_like</span>
+<span class="sd">        Wavenumbers in h/Mpc</span>
+<span class="sd">    power_binned : array_like</span>
+<span class="sd">        Power spectrum values P(k) in (Mpc/h)³</span>
+<span class="sd">    </span>
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    This implementation uses Nearest Grid Point (NGP) assignment to create </span>
+<span class="sd">    the density field before applying the FFT.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">mesh_size</span><span class="p">,</span> <span class="n">mesh_size</span><span class="p">,</span> <span class="n">mesh_size</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">positions</span> <span class="o">/</span> <span class="n">box_size</span> <span class="o">*</span> <span class="n">mesh_size</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span> <span class="o">%</span> <span class="n">mesh_size</span>
+    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">positions</span><span class="p">)),</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Binning particles&quot;</span><span class="p">):</span>
+        <span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">k</span> <span class="o">=</span> <span class="n">indices</span><span class="p">[</span><span class="n">p</span><span class="p">]</span>
+        <span class="n">grid</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">k</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="n">mean_density</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">positions</span><span class="p">)</span> <span class="o">/</span> <span class="n">mesh_size</span><span class="o">**</span><span class="mi">3</span>
+    <span class="n">grid</span> <span class="o">=</span> <span class="n">grid</span> <span class="o">/</span> <span class="n">mean_density</span> <span class="o">-</span> <span class="mf">1.0</span>
+    <span class="n">fft_grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fftn</span><span class="p">(</span><span class="n">grid</span><span class="p">)</span>
+    <span class="n">power</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">fft_grid</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span>
+    <span class="n">kf</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="n">box_size</span>
+    <span class="n">kx</span> <span class="o">=</span> <span class="n">kf</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fftfreq</span><span class="p">(</span><span class="n">mesh_size</span><span class="p">)</span> <span class="o">*</span> <span class="n">mesh_size</span>
+    <span class="n">ky</span> <span class="o">=</span> <span class="n">kf</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fftfreq</span><span class="p">(</span><span class="n">mesh_size</span><span class="p">)</span> <span class="o">*</span> <span class="n">mesh_size</span>
+    <span class="n">kz</span> <span class="o">=</span> <span class="n">kf</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fftfreq</span><span class="p">(</span><span class="n">mesh_size</span><span class="p">)</span> <span class="o">*</span> <span class="n">mesh_size</span>
+    <span class="n">kgrid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">kx</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> 
+                    <span class="n">ky</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> 
+                    <span class="n">kz</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">kbins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mf">0.1</span> <span class="o">*</span> <span class="n">kf</span><span class="p">,</span> <span class="n">kf</span> <span class="o">*</span> <span class="n">mesh_size</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">20</span><span class="p">)</span>
+    <span class="n">k_vals</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">kbins</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">+</span> <span class="n">kbins</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">power_binned</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">k_vals</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">kbins</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">kgrid</span> <span class="o">&gt;=</span> <span class="n">kbins</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">kgrid</span> <span class="o">&lt;</span> <span class="n">kbins</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">power_binned</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">power</span><span class="p">[</span><span class="n">mask</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">k_vals</span><span class="p">,</span> <span class="n">power_binned</span>
+
+<span class="k">def</span> <span class="nf">calc_power_spectrum2</span><span class="p">(</span><span class="n">positions</span><span class="p">,</span> <span class="n">box_size</span><span class="p">,</span> <span class="n">grid_size</span><span class="o">=</span><span class="mi">256</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute the matter power spectrum from particle positions using FFT and CIC assignment.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    positions : array_like</span>
+<span class="sd">        (N, 3) array of particle positions in the simulation box in Mpc/h</span>
+<span class="sd">    box_size : float</span>
+<span class="sd">        Size of the simulation box in Mpc/h</span>
+<span class="sd">    grid_size : int, optional</span>
+<span class="sd">        Number of grid cells along each axis, defaults to 256</span>
+<span class="sd">    </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    k_centers : array_like</span>
+<span class="sd">        Array of wavenumbers in h/Mpc</span>
+<span class="sd">    Pk : array_like</span>
+<span class="sd">        Power spectrum values at k in (Mpc/h)³</span>
+<span class="sd">    </span>
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    This implementation uses Cloud-In-Cell (CIC) assignment to create </span>
+<span class="sd">    the density field before applying the FFT.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">N</span> <span class="o">=</span> <span class="n">positions</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">dx</span> <span class="o">=</span> <span class="n">box_size</span> <span class="o">/</span> <span class="n">grid_size</span>
+    <span class="n">rho</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">grid_size</span><span class="p">,</span> <span class="n">grid_size</span><span class="p">,</span> <span class="n">grid_size</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">pos</span> <span class="ow">in</span> <span class="n">positions</span><span class="p">:</span>
+        <span class="n">ix</span> <span class="o">=</span> <span class="p">(</span><span class="n">pos</span> <span class="o">/</span> <span class="n">dx</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span> <span class="o">%</span> <span class="n">grid_size</span>
+        <span class="n">rho</span><span class="p">[</span><span class="n">ix</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">ix</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">ix</span><span class="p">[</span><span class="mi">2</span><span class="p">]]</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="n">rho_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">rho</span><span class="p">)</span>
+    <span class="n">delta</span> <span class="o">=</span> <span class="n">rho</span> <span class="o">/</span> <span class="n">rho_mean</span> <span class="o">-</span> <span class="mf">1.0</span>
+    <span class="n">delta_k</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fftn</span><span class="p">(</span><span class="n">delta</span><span class="p">)</span>
+    <span class="n">delta_k</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fftshift</span><span class="p">(</span><span class="n">delta_k</span><span class="p">)</span>
+    <span class="n">power_spectrum</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">delta_k</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span>
+    <span class="n">k_vals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fftfreq</span><span class="p">(</span><span class="n">grid_size</span><span class="p">,</span> <span class="n">d</span><span class="o">=</span><span class="n">dx</span><span class="p">)</span>
+    <span class="n">kx</span><span class="p">,</span> <span class="n">ky</span><span class="p">,</span> <span class="n">kz</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">k_vals</span><span class="p">,</span> <span class="n">k_vals</span><span class="p">,</span> <span class="n">k_vals</span><span class="p">,</span> <span class="n">indexing</span><span class="o">=</span><span class="s1">&#39;ij&#39;</span><span class="p">)</span>
+    <span class="n">k_mag</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">kx</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">ky</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">kz</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">k_mag</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fftshift</span><span class="p">(</span><span class="n">k_mag</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span>
+    <span class="n">k_bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">k_mag</span><span class="p">),</span> <span class="n">grid_size</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">Pk</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">k_bins</span><span class="p">)</span>
+    <span class="n">counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">k_bins</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">k_bins</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">k_mag</span> <span class="o">&gt;=</span> <span class="n">k_bins</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">k_mag</span> <span class="o">&lt;</span> <span class="n">k_bins</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="n">Pk</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">power_spectrum</span><span class="p">[</span><span class="n">mask</span><span class="p">])</span> <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="n">counts</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span>
+    <span class="n">k_centers</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">k_bins</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">k_bins</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+    <span class="n">Pk</span> <span class="o">=</span> <span class="n">Pk</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">k_centers</span><span class="p">,</span> <span class="n">Pk</span>
+
+<span class="k">def</span> <span class="nf">compare_power_spectra</span><span class="p">(</span><span class="n">dmo_positions</span><span class="p">,</span> <span class="n">bcm_positions</span><span class="p">,</span> <span class="n">box_size</span><span class="p">,</span> <span class="n">output_file</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compare power spectra between DMO and BCM simulations and plot their ratio.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    dmo_positions : array_like</span>
+<span class="sd">        (N, 3) array of particle positions from the DMO simulation in Mpc/h</span>
+<span class="sd">    bcm_positions : array_like</span>
+<span class="sd">        (N, 3) array of particle positions from the BCM simulation in Mpc/h</span>
+<span class="sd">    box_size : float</span>
+<span class="sd">        Size of the simulation box in Mpc/h</span>
+<span class="sd">    output_file : str, optional</span>
+<span class="sd">        Path to save the output plot, if not provided the plot is not saved</span>
+<span class="sd">        </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    k_dmo : array_like</span>
+<span class="sd">        Wavenumbers for the DMO power spectrum in h/Mpc</span>
+<span class="sd">    Pk_dmo : array_like</span>
+<span class="sd">        Power spectrum values for DMO simulation in (Mpc/h)³</span>
+<span class="sd">    k_bcm : array_like</span>
+<span class="sd">        Wavenumbers for the BCM power spectrum in h/Mpc</span>
+<span class="sd">    Pk_bcm : array_like</span>
+<span class="sd">        Power spectrum values for BCM simulation in (Mpc/h)³</span>
+<span class="sd">        </span>
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    If the particle counts don&#39;t match, the function will truncate the larger dataset.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Comparing power spectra between DMO and BCM simulations&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dmo_positions</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">bcm_positions</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;WARNING: Particle counts don&#39;t match! Power spectrum comparison may be invalid.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">bcm_positions</span><span class="p">)</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">dmo_positions</span><span class="p">):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Using only the first </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">bcm_positions</span><span class="p">)</span><span class="si">}</span><span class="s2"> DMO particles to match BCM count&quot;</span><span class="p">)</span>
+            <span class="n">dmo_positions</span> <span class="o">=</span> <span class="n">dmo_positions</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">bcm_positions</span><span class="p">)]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Using only the first </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">dmo_positions</span><span class="p">)</span><span class="si">}</span><span class="s2"> BCM particles to match DMO count&quot;</span><span class="p">)</span>
+            <span class="n">bcm_positions</span> <span class="o">=</span> <span class="n">bcm_positions</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">dmo_positions</span><span class="p">)]</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Calculating power spectrum for DMO&quot;</span><span class="p">)</span>
+    <span class="n">k_dmo</span><span class="p">,</span> <span class="n">Pk_dmo</span> <span class="o">=</span> <span class="n">calc_power_spectrum</span><span class="p">(</span><span class="n">dmo_positions</span><span class="p">,</span> <span class="n">box_size</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Calculating power spectrum for BCM&quot;</span><span class="p">)</span>
+    <span class="n">k_bcm</span><span class="p">,</span> <span class="n">Pk_bcm</span> <span class="o">=</span> <span class="n">calc_power_spectrum</span><span class="p">(</span><span class="n">bcm_positions</span><span class="p">,</span> <span class="n">box_size</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
+    <span class="n">ratio</span> <span class="o">=</span> <span class="n">Pk_bcm</span> <span class="o">/</span> <span class="n">Pk_dmo</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">k_dmo</span><span class="p">,</span> <span class="n">ratio</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Ratio BCM/DMO&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;k [h/Mpc]&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;P(k) [(Mpc/h)³]&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">output_file</span><span class="p">:</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">output_file</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">k_dmo</span><span class="p">,</span> <span class="n">Pk_dmo</span><span class="p">,</span> <span class="n">k_bcm</span><span class="p">,</span> <span class="n">Pk_bcm</span>
+
+<span class="k">def</span> <span class="nf">plot_power_spectrum</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">Pk</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">save_path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Plot a power spectrum on a log-log scale.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    k : array_like</span>
+<span class="sd">        Wavenumbers in h/Mpc</span>
+<span class="sd">    Pk : array_like</span>
+<span class="sd">        Power spectrum values in (Mpc/h)³</span>
+<span class="sd">    title : str, optional</span>
+<span class="sd">        Title for the plot, defaults to &#39;Power Spectrum&#39;</span>
+<span class="sd">    save_path : str, optional</span>
+<span class="sd">        Path to save the figure, if not provided the figure is not saved</span>
+<span class="sd">        </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None</span>
+<span class="sd">        The function displays the plot and optionally saves it</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">Pk</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;k [h/Mpc]&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;P(k) [(Mpc/h)³]&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="n">title</span> <span class="k">if</span> <span class="n">title</span> <span class="k">else</span> <span class="s1">&#39;Power Spectrum&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">save_path</span><span class="p">:</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">save_path</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+<span class="k">def</span> <span class="nf">verify_schneider2</span><span class="p">(</span><span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Verify implementation against Schneider &amp; Teyssier 2016 Fig 1 by plotting cases (a, b).</span>
+<span class="sd">    </span>
+<span class="sd">    Creates a simplified comparison of the density profiles and displacement functions</span>
+<span class="sd">    for the first two test cases from the original paper.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    verbose : bool, optional</span>
+<span class="sd">        Whether to print detailed information during calculations, defaults to False</span>
+<span class="sd">        </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None</span>
+<span class="sd">        The function saves the output figure as &quot;Schneider_match_4.png&quot;</span>
+<span class="sd">    </span>
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    This function is a simplified version of verify_schneider that focuses only on</span>
+<span class="sd">    the first two cases (a and b) and shows only density profiles and displacement functions.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">BCM</span> <span class="kn">import</span> <span class="n">simulations</span> <span class="k">as</span> <span class="n">sim</span>
+    <span class="kn">from</span> <span class="nn">.parameters</span> <span class="kn">import</span> <span class="n">DEFAULTS</span><span class="p">,</span> <span class="n">CASE_PARAMS</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Verifying match to Schneider &amp; Teyssier 2016 Fig 1&quot;</span><span class="p">)</span>
+    <span class="n">cases</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">CASE_PARAMS</span><span class="o">.</span><span class="n">keys</span><span class="p">())[:</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cases</span><span class="p">),</span> <span class="mi">2</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">12</span><span class="p">))</span>
+    <span class="n">M200</span> <span class="o">=</span> <span class="n">DEFAULTS</span><span class="p">[</span><span class="s1">&#39;M200&#39;</span><span class="p">]</span>
+    <span class="n">r200</span> <span class="o">=</span> <span class="n">DEFAULTS</span><span class="p">[</span><span class="s1">&#39;r200&#39;</span><span class="p">]</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="n">DEFAULTS</span><span class="p">[</span><span class="s1">&#39;c&#39;</span><span class="p">]</span>
+    <span class="n">h</span> <span class="o">=</span> <span class="n">DEFAULTS</span><span class="p">[</span><span class="s1">&#39;h&#39;</span><span class="p">]</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">DEFAULTS</span><span class="p">[</span><span class="s1">&#39;z&#39;</span><span class="p">]</span>
+    <span class="n">Omega_m</span> <span class="o">=</span> <span class="n">DEFAULTS</span><span class="p">[</span><span class="s1">&#39;Omega_m&#39;</span><span class="p">]</span>
+    <span class="n">r_ej</span> <span class="o">=</span> <span class="n">DEFAULTS</span><span class="p">[</span><span class="s1">&#39;r_ej_factor&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="n">r200</span>
+    <span class="n">R_h</span> <span class="o">=</span> <span class="n">DEFAULTS</span><span class="p">[</span><span class="s1">&#39;R_h_factor&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="n">r200</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">case</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">cases</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Paper case (</span><span class="si">{</span><span class="n">case</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+        <span class="n">case_params</span> <span class="o">=</span> <span class="n">CASE_PARAMS</span><span class="p">[</span><span class="n">case</span><span class="p">]</span>
+        <span class="n">f_rdm</span> <span class="o">=</span> <span class="n">case_params</span><span class="p">[</span><span class="s1">&#39;f_rdm&#39;</span><span class="p">]</span>
+        <span class="n">bcm</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">CAMELSReader</span><span class="p">(</span><span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">)</span>
+        <span class="n">bcm</span><span class="o">.</span><span class="n">r_ej</span> <span class="o">=</span> <span class="n">r_ej</span>
+        <span class="n">bcm</span><span class="o">.</span><span class="n">R_h</span> <span class="o">=</span> <span class="n">R_h</span>
+        <span class="n">bcm</span><span class="o">.</span><span class="n">fbar</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">f_rdm</span>
+        <span class="n">bcm</span><span class="o">.</span><span class="n">init_calculations</span><span class="p">(</span>
+            <span class="n">M200</span><span class="o">=</span><span class="n">M200</span><span class="p">,</span>
+            <span class="n">r200</span><span class="o">=</span><span class="n">r200</span><span class="p">,</span>
+            <span class="n">c</span><span class="o">=</span><span class="n">c</span><span class="p">,</span>
+            <span class="n">h</span><span class="o">=</span><span class="n">h</span><span class="p">,</span>
+            <span class="n">z</span><span class="o">=</span><span class="n">z</span><span class="p">,</span>
+            <span class="n">Omega_m</span><span class="o">=</span><span class="n">Omega_m</span><span class="p">,</span>
+            <span class="n">f</span><span class="o">=</span><span class="n">case_params</span><span class="p">,</span>
+            <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span>
+        <span class="p">)</span>
+        <span class="n">components</span> <span class="o">=</span> <span class="n">bcm</span><span class="o">.</span><span class="n">components</span>
+        <span class="n">r_vals</span> <span class="o">=</span> <span class="n">bcm</span><span class="o">.</span><span class="n">r_vals</span>
+        <span class="n">r_s</span> <span class="o">=</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;r_s&#39;</span><span class="p">]</span>
+        <span class="n">disp</span> <span class="o">=</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;disp&#39;</span><span class="p">]</span>
+        <span class="n">ax1</span> <span class="o">=</span> <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;rho_dmo&#39;</span><span class="p">],</span> <span class="s1">&#39;b-&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;DM-only (NFW+Bkg)&#39;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;rdm&#39;</span><span class="p">],</span> <span class="s1">&#39;b--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Relaxed DM (rdm)&#39;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;bgas&#39;</span><span class="p">],</span> <span class="s1">&#39;g--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Bound gas (bgas)&#39;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;egas&#39;</span><span class="p">],</span> <span class="s1">&#39;r--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Ejected gas (egas)&#39;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;cgal&#39;</span><span class="p">],</span> <span class="s1">&#39;m--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Central galaxy (cgal)&#39;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;rho_bkg&#39;</span><span class="p">],</span> <span class="s1">&#39;y--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Background&#39;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">components</span><span class="p">[</span><span class="s1">&#39;rho_bcm&#39;</span><span class="p">],</span> <span class="s1">&#39;r-&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Total bcm profile&#39;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">r200</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;r200&#39;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">r_s</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;r_s&#39;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Radius [Mpc/h]&quot;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Density [Msun/h/Mpc³]&quot;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Density Profiles - Case </span><span class="si">{</span><span class="n">case</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">([</span><span class="mf">1e-2</span><span class="p">,</span> <span class="mf">3e1</span><span class="p">])</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">([</span><span class="mf">2e9</span><span class="p">,</span> <span class="mf">7e16</span><span class="p">])</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="n">which</span><span class="o">=</span><span class="s2">&quot;both&quot;</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s2">&quot;:&quot;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
+        <span class="n">ax2</span> <span class="o">=</span> <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span>
+        <span class="n">disp_pos</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">disp</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="n">disp</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">disp_neg</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">disp</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">,</span> <span class="n">disp</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">ax2</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">disp_pos</span><span class="p">),</span> <span class="s1">&#39;b-&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;positive&#39;</span><span class="p">)</span>
+        <span class="n">ax2</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">r_vals</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">disp_neg</span><span class="p">),</span> <span class="s1">&#39;b--&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;negative&#39;</span><span class="p">)</span>
+        <span class="n">ax2</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">r200</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;r200&#39;</span><span class="p">)</span>
+        <span class="n">ax2</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Radius [Mpc/h]&quot;</span><span class="p">)</span>
+        <span class="n">ax2</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Displacement [Mpc/h]&quot;</span><span class="p">)</span>
+        <span class="n">ax2</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Displacement Function - Case </span><span class="si">{</span><span class="n">case</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">ax2</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mf">1e-4</span><span class="p">,</span> <span class="mf">1.1</span><span class="p">)</span>
+        <span class="n">ax2</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mf">1e-2</span><span class="p">,</span> <span class="mf">1e2</span><span class="p">)</span>
+        <span class="n">ax2</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="n">which</span><span class="o">=</span><span class="s2">&quot;both&quot;</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s2">&quot;:&quot;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
+        <span class="n">ax2</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s2">&quot;Comparison of Cases (a, b) from Schneider &amp; Teyssier 2016&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">(</span><span class="n">rect</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mf">0.96</span><span class="p">])</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s2">&quot;Schneider_match_4.png&quot;</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s1">&#39;tight&#39;</span><span class="p">)</span>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Max Rauter.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

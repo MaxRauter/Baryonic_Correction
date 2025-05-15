@@ -19,12 +19,23 @@ class CAMELSReader:
     
     def __init__(self, path_group=None, path_snapshot=None, index = None, verbose = False):
         """
-        Initialize the CAMELSReader with a path to CAMELS data.
+        Initialize the CAMELSReader with optional paths to group and snapshot data.
         
-        Parameters:
-        -----------
-        path : str
-            Path to the directory containing the simulation data.
+        Parameters
+        ----------
+        path_group : str, optional
+            Path to the directory containing the group (halo) data.
+        path_snapshot : str, optional
+            Path to the directory containing the snapshot (simulation) data.
+        index : int, optional
+            Index of the simulation or snapshot to load.
+        verbose : bool, default False
+            If True, enables verbose output during data loading.
+            
+        Notes
+        -----
+        If `path_group` is provided, halo data will be loaded automatically.
+        If `path_snapshot` is provided, simulation and particle data will be loaded automatically.
         """
         self.path_group = path_group
         self.path_snapshot = path_snapshot
@@ -39,16 +50,20 @@ class CAMELSReader:
         
     def _load_halodata(self):
         """
-        Load a CAMELS simulation from the given path.
+        Load halo data from the CAMELS simulation.
         
-        Parameters:
-        -----------
-        path : str
-            Path to the simulation directory.
-            
-        Returns:
-        --------
-        None
+        This method reads and processes halo-related information from the specified
+        group file path, storing properties like mass, radius, and positions.
+        
+        Returns
+        -------
+        bool or None
+            Returns False if the path does not exist, None otherwise.
+        
+        Notes
+        -----
+        The loaded data is stored in the `self.halo` attribute as a dictionary
+        with keys 'm200', 'r200', 'lentype_h', 'pos', and 'id'.
         """
         path = self.path_group
         if path is None:
@@ -78,16 +93,20 @@ class CAMELSReader:
        
     def _load_simdata(self):
         """
-        Load a CAMELS simulation from the given path.
+        Load simulation data from the CAMELS snapshot.
         
-        Parameters:
-        -----------
-        path : str
-            Path to the simulation directory.
+        This method reads and processes general simulation information from the
+        snapshot file, including cosmological parameters and box properties.
+        
+        Returns
+        -------
+        bool or None
+            Returns False if the path does not exist, None otherwise.
             
-        Returns:
-        --------
-        None
+        Notes
+        -----
+        The loaded data is stored as attributes of the object, including
+        boxsize, redshift, Hubble parameter, and cosmological densities.
         """
         path = self.path_snapshot
         if path is None:
@@ -128,12 +147,41 @@ class CAMELSReader:
             return
                 
     def _calc_offset(self, index = None):
+        """
+        Calculate the offset for the specified halo index.
+
+        This method computes the sum of the lengths of all Friends-of-Friends (FoF) halos
+        preceding the specified index, and returns the second element of the resulting sum.
+        If no index is provided, it uses the current object's `self.index` attribute.
+
+        Parameters
+        ----------
+        index : int, optional
+            The index of the halo for which to calculate the offset. If None, uses `self.index`.
+
+        Returns
+        -------
+        offset : int
+            The offset value corresponding to the sum of the lengths of all previous FoF halos.
+        """
         if index is None:
             index = self.index
         offset = np.sum(self.halo['lentype_h'][:index], axis=0)[1] #this is the sum of the lengths of all FoF halos previous to the one we consider
         return offset
     
     def _load_particles(self):
+        """
+        Load particle data for halos from the simulation snapshot.
+        
+        This method reads particle positions, velocities, and IDs for each halo
+        specified either by self.index or for all halos if self.index is None.
+        
+        Notes
+        -----
+        The loaded data is stored in the `self.particles` attribute as a list of dictionaries,
+        where each dictionary contains 'pos', 'vel', and 'id' for a halo.
+        Positions and velocities are converted to units of Mpc/h.
+        """
         path = self.path_snapshot        
         if self.index == None:
             halos = self.halo['id'][:]
@@ -155,6 +203,32 @@ class CAMELSReader:
         self.particles = particles
     
     def get_halo_particles(self, index = None):
+        """
+        Retrieve particle data for a specific halo.
+        
+        This method loads position, velocity, and ID information for particles
+        belonging to the specified halo. If no index is provided, all particles
+        are retrieved.
+        
+        Parameters
+        ----------
+        index : int, optional
+            The index of the halo for which to retrieve particles. If None, 
+            all particles from the snapshot are returned.
+        
+        Returns
+        -------
+        dict or None
+            A dictionary containing particle data with the following keys:
+            - 'pos': positions of particles in Mpc/h
+            - 'vel': velocities of particles in appropriate units
+            - 'id': particle IDs
+            Returns None if the file does not exist or if there's an error loading the data.
+        
+        Notes
+        -----
+        The particle data is also stored in the `self.particles` attribute.
+        """
         path = self.path_snapshot 
         #print(f"Trying to open snapshot file: {path}")  # Add this line
         if not os.path.exists(path):
@@ -179,7 +253,21 @@ class CAMELSReader:
         return particles
     
     def get_halo_center(self, index=None):
-        """Get the center of a halo."""
+        """
+        Get the center position of a halo.
+        
+        Parameters
+        ----------
+        index : int, optional
+            The index of the halo for which to retrieve the center. If None,
+            and `self.index` is set, uses that. If both are None, returns
+            centers for all halos.
+        
+        Returns
+        -------
+        numpy.ndarray
+            The 3D coordinates of the halo center in Mpc/h.
+        """
         if index is None:
             if self.index is None:
                 return self.halo['pos']
@@ -188,7 +276,32 @@ class CAMELSReader:
         return self.halo['pos'][index]/1e3
     
     def get_particles_relative_position(self, index=None):
-        """Get particle positions relative to halo center."""
+        """
+        Get particle positions relative to their halo center.
+        
+        This method calculates the position of particles relative to the center 
+        of the halo they belong to.
+        
+        Parameters
+        ----------
+        index : int, optional
+            The index of the halo for which to calculate relative positions.
+            If None, relative positions are calculated for all halos.
+        
+        Returns
+        -------
+        numpy.ndarray or dict
+            If `index` is provided, returns a numpy array of shape (N, 3) containing
+            the positions of N particles relative to the halo center.
+            If `index` is None, returns a dictionary mapping halo indices to their
+            relative particle positions.
+            Returns None if there's an error processing the data.
+        
+        Notes
+        -----
+        For multiple halos, this function produces verbose output about the
+        processing progress and results.
+        """
         if index is not None:
             particles = self.get_halo_particles(index)
             
@@ -226,7 +339,29 @@ class CAMELSReader:
             return result
     
     def plot_halo_masses_histogram(self, masslimit=None):
-        """Plot a histogram of halo masses."""
+        """
+        Plot a histogram of halo masses.
+        
+        This method creates a histogram of the masses of all halos in the simulation,
+        optionally highlighting a specific mass limit.
+        
+        Parameters
+        ----------
+        masslimit : float, optional
+            If provided, a vertical line will be drawn at this mass value, and
+            statistics about halos above/below this limit will be reported.
+            
+        Returns
+        -------
+        str
+            A string containing information about the mass range and, if masslimit
+            is provided, the number of halos below the limit.
+            
+        Notes
+        -----
+        The histogram is plotted on a logarithmic scale for better visualization
+        of the mass distribution, which often spans several orders of magnitude.
+        """
         import matplotlib.pyplot as plt
         
         # Filter out any zero or negative masses before taking log10
@@ -257,16 +392,41 @@ class CAMELSReader:
         """
         Initialize the Baryonic Correction Model for a given halo.
         
-        Parameters:
-            M200 (float): Halo mass in Msun/h
-            r200 (float): Halo radius in Mpc/h
-            c (float): Concentration parameter
-            h (float): Hubble parameter 
-            z (float): Redshift
-            Omega_m (float): Matter density parameter
-            f (str or list): Either a preset case ("a", "b", "c") or a list of 
-                             abundance fractions [f_rdm, f_bgas, f_cgal, f_egas]
-            verbose (bool): Whether to print detailed information
+        This method sets up all the required parameters for the BCM calculation,
+        either using values provided as arguments or taken from the loaded halo data.
+        After initialization, the calculation is automatically performed.
+        
+        Parameters
+        ----------
+        M200 : float, optional
+            Halo mass in Msun/h. If None and self.index is set, uses the value from loaded halo data.
+        r200 : float, optional
+            Halo radius in Mpc/h. If None and self.index is set, uses the value from loaded halo data.
+        c : float, optional
+            Concentration parameter of the halo. If None, calculated based on M200 and redshift.
+        h : float, optional
+            Hubble parameter. If None, uses the value from loaded simulation data.
+        z : float, optional
+            Redshift. If None, uses the value from loaded simulation data.
+        Omega_m : float, optional
+            Matter density parameter. If None, uses the value from loaded simulation data.
+        f : list, dict, or None, optional
+            Abundance fractions specification. Can be either:
+            - A list of fractions [f_rdm, f_bgas, f_cgal, f_egas]
+            - A dictionary with keys 'f_rdm', 'f_bgas', 'f_cgal', 'f_egas'
+            - None to calculate fractions based on mass and redshift
+        verbose : bool, default False
+            Whether to print detailed information during the calculation process.
+            
+        Returns
+        -------
+        self : CAMELSReader
+            Returns self for method chaining.
+            
+        Notes
+        -----
+        This method automatically calls the calculate() method after initialization.
+        The abundance fractions must sum to 1.0 with a tolerance of 1e-6.
         """
         # Store input parameters
         self.M200 = self.halo['m200'][self.index] if self.index is not None else M200
@@ -313,7 +473,26 @@ class CAMELSReader:
         self.calculate()
     
     def _set_abundance_fractions(self, f):
-        """Set abundance fractions based on input."""
+        """
+        Set abundance fractions based on input.
+        
+        Parameters
+        ----------
+        f : list, dict, or None
+            Abundance fractions specification. Can be either:
+            - A list of fractions [f_rdm, f_bgas, f_cgal, f_egas]
+            - A dictionary with keys 'f_rdm', 'f_bgas', 'f_cgal', 'f_egas'
+            - None to calculate fractions based on mass and redshift
+            
+        Raises
+        ------
+        ValueError
+            If the sum of fractions does not equal 1.0 within tolerance.
+            
+        Notes
+        -----
+        Sets class attributes f_rdm, f_bgas, f_cgal, and f_egas.
+        """
         # Check if f is list/dict or has to be calculated
         if (isinstance(f, list) and len(f) == 4) or (isinstance(f, dict) and len(f) == 4):
             # Custom abundance fractions
@@ -344,7 +523,12 @@ class CAMELSReader:
             raise ValueError(f"Abundance fractions do not sum to 1.0 but to {total:.6f}")
     
     def _print_parameters(self):
-        """Print the model parameters."""
+        """
+        Print the model parameters.
+        
+        This method displays all the relevant BCM parameters including
+        halo properties, cosmological parameters, and abundance fractions.
+        """
         print(f"BCM with M200 = {self.M200:.2e} Msun/h, r200 = {self.r200:.3f} Mpc/h, "
               f"c = {self.c:.2f}, h = {self.h:.3f}, z = {self.z:.2f}, Omega_m = {self.Om:.3f}, Omega_b = {self.Ob:.3f}, fbar = {self.fbar:.3f}")
         print("Abundance fractions:")
@@ -354,7 +538,14 @@ class CAMELSReader:
         print(f"  f_egas = {self.f_egas:.3f}")
         
     def _print_components_at(self,r):
-        """Print the calculated components at given radius."""
+        """
+        Print the calculated components at a given radius.
+        
+        Parameters
+        ----------
+        r : float
+            Radius in Mpc/h at which to display component values.
+        """
         print(f"Components at r = {r:.3f} Mpc/h:")
         print(f"  rho_dmo = {dp.rho_nfw(r, self.r_s, self.rho0, self.r_tr):.3e}")
         print(f"  rho_bcm = {self.components['rho_bcm'][r]:.3e}")
@@ -365,6 +556,28 @@ class CAMELSReader:
         print(f"  rho_cgal = {self.components['cgal'][r]:.3e}")
         
     def _create_radius_array(self, r_min, r_max, n_points):
+        """
+        Create a radius array for calculations.
+        
+        This method generates a non-uniform array of radii that has higher
+        resolution in the inner regions of the halo.
+        
+        Parameters
+        ----------
+        r_min : float
+            Minimum radius in Mpc/h.
+        r_max : float
+            Maximum radius in Mpc/h.
+        n_points : int
+            Total number of points in the array.
+            
+        Notes
+        -----
+        The array uses logarithmic spacing for the inner 70% of points and
+        linear spacing for the outer 30%, providing better resolution where
+        profiles change more rapidly.
+        Sets the class attribute r_vals.
+        """
         # Use a combination of log and linear spacing to get more points in the center
         n_log = int(n_points * 0.7)
         n_lin = n_points - n_log
@@ -380,7 +593,18 @@ class CAMELSReader:
     def _calc_NFW_target_mass(self):
         """
         Calculate the target mass for the NFW profile.
-        This is done by integrating the NFW profile over a large range.
+        
+        This method integrates the NFW profile over the entire radius range
+        to determine the total mass of the halo.
+        
+        Returns
+        -------
+        numpy.ndarray
+            Array of cumulative NFW masses at each radius.
+            
+        Notes
+        -----
+        Also sets the class attributes rho0 and fixed_M_tot.
         """
         # Integrate NFW profile over a large range to approximate total mass
         self.rho0 = ut.bracket_rho0(self.M200, self.r_s, self.r_tr, self.r200)
@@ -393,7 +617,17 @@ class CAMELSReader:
         return M_nfw
 
     def _calculate_normalizations(self):
-
+        """
+        Calculate normalization factors for density components.
+        
+        This method computes the normalization constants needed for each
+        component of the BCM to contain the correct fraction of the total mass.
+        
+        Returns
+        -------
+        tuple of float
+            Normalization constants for (bgas, egas, cgal, rdm).
+        """
         norm_bgas = ut.normalize_component_total(
             lambda r, r_s, r200, y0, c, rho0, r_tr: dp.y_bgas(r, r_s, r200, y0, c, rho0, r_tr), 
             (self.r_s, self.r200, 1.0, self.c, self.rho0, self.r_tr), self.f_bgas * self.fixed_M_tot, self.r200
@@ -414,6 +648,16 @@ class CAMELSReader:
         return norm_bgas, norm_egas, norm_cgal, norm_yrdm_fixed_xi
 
     def _calculate_normalizations_old(self):
+        """
+        Calculate normalizations using old method.
+        
+        This is a legacy method kept for comparison purposes.
+        
+        Returns
+        -------
+        tuple of float
+            Normalization constants for (bgas, egas, cgal, rdm).
+        """
         norm_bgas = ut.normalize_component_total(
             lambda r, r_s, r200, y0, c, rho0, r_tr: dp.y_bgas(r, r_s, r200, y0, c, rho0, r_tr), 
             (self.r_s, self.r200, 1.0, self.c, self.rho0, self.r_tr), self.f_bgas * self.M200, self.r200
@@ -433,7 +677,28 @@ class CAMELSReader:
         return norm_bgas, norm_egas, norm_cgal, norm_rdm
 
     def normalize_cgal_special(density_func, args, M_target, R_h):
-        """Special normalization for cgal that uses a R_h-dependent integration range"""
+        """
+        Special normalization for central galaxy component.
+        
+        This method uses a much larger integration radius adapted to the
+        Hernquist profile to ensure proper mass normalization.
+        
+        Parameters
+        ----------
+        density_func : callable
+            The density profile function to normalize.
+        args : tuple
+            Arguments to pass to the density function.
+        M_target : float
+            Target mass for the component in Msun/h.
+        R_h : float
+            Characteristic radius of the Hernquist profile in Mpc/h.
+            
+        Returns
+        -------
+        float
+            Normalization factor to apply to the density profile.
+        """
         def unnorm_func(r):
             return density_func(r, 1.0, *args)
         
@@ -444,7 +709,34 @@ class CAMELSReader:
         return M_target / unnorm_mass
     
     def _compute_density_profiles(self, norm_bgas, norm_egas, norm_cgal, norm_rdm_fixed_xi, M_nfw):
+        """
+        Compute density profiles for all components.
         
+        This method calculates the density profiles for each BCM component
+        using the provided normalization constants.
+        
+        Parameters
+        ----------
+        norm_bgas : float
+            Normalization constant for baryonic gas.
+        norm_egas : float
+            Normalization constant for ejected gas.
+        norm_cgal : float
+            Normalization constant for central galaxy.
+        norm_rdm_fixed_xi : float
+            Normalization constant for remaining dark matter.
+        M_nfw : numpy.ndarray
+            Cumulative mass profile of the NFW halo.
+            
+        Returns
+        -------
+        tuple
+            All density profiles: (rho_dmo, rho_nfw, rho_bkg, y_bgas, y_egas, y_cgal, y_rdm, rho_bcm).
+            
+        Notes
+        -----
+        Also sets the class attribute profiles with all calculated profiles.
+        """
         rho_dmo_vals = np.array([dp.rho_nfw(r, self.r_s, self.rho0, self.r_tr) + 
                                dp.rho_background(r, 1) for r in self.r_vals])
         rho_nfw_vals = np.array([dp.rho_nfw(r, self.r_s, self.rho0, self.r_tr) 
@@ -503,6 +795,24 @@ class CAMELSReader:
         return rho_dmo_vals, rho_nfw_vals, rho_bkg_vals, y_bgas_vals, y_egas_vals, y_cgal_vals, y_rdm_vals, rho_bcm
 
     def correction_factors_baryons(self, fractions, profiles):
+        """
+        Apply mass correction factors to baryonic components.
+        
+        This method adjusts the density profiles to ensure each component
+        contains the exact fraction of the total mass.
+        
+        Parameters
+        ----------
+        fractions : list of float
+            List of mass fractions [f_rdm, f_bgas, f_cgal, f_egas].
+        profiles : list of numpy.ndarray
+            List of density profiles [rdm, bgas, egas, cgal].
+            
+        Returns
+        -------
+        list of numpy.ndarray
+            Corrected density profiles.
+        """
         cor_profiles = []
         for i in range(len(fractions)):
             mass = ut.cumul_mass(self.r_vals, profiles[i])[-1]
@@ -511,6 +821,42 @@ class CAMELSReader:
         return cor_profiles
 
     def _compute_mass_profiles(self, rho_dmo_vals, rho_bkg_vals, y_rdm_vals, y_bgas_vals, y_egas_vals, y_cgal_vals, rho_bcm, M_nfw):
+        """
+        Compute cumulative mass profiles for all components.
+        
+        This method integrates the density profiles to obtain the enclosed
+        mass as a function of radius for each component.
+        
+        Parameters
+        ----------
+        rho_dmo_vals : numpy.ndarray
+            DMO density profile.
+        rho_bkg_vals : numpy.ndarray
+            Background density profile.
+        y_rdm_vals : numpy.ndarray
+            Remaining dark matter density profile.
+        y_bgas_vals : numpy.ndarray
+            Baryonic gas density profile.
+        y_egas_vals : numpy.ndarray
+            Ejected gas density profile.
+        y_cgal_vals : numpy.ndarray
+            Central galaxy density profile.
+        rho_bcm : numpy.ndarray
+            Total BCM density profile.
+        M_nfw : numpy.ndarray
+            Cumulative NFW mass profile.
+            
+        Returns
+        -------
+        tuple
+            All mass profiles: (M_dmo, M_bkg, M_rdm, M_bgas, M_egas, M_cgal, M_bcm).
+            
+        Notes
+        -----
+        Also sets the class attribute masses with all calculated mass profiles.
+        Calls _check_masses to validate the results and _print_masses_at_infinity
+        if verbose is True.
+        """
         M_dmo = ut.cumul_mass(self.r_vals, rho_dmo_vals)
         M_bkg = ut.cumul_mass(self.r_vals, rho_bkg_vals)
         M_rdm = ut.cumul_mass(self.r_vals, y_rdm_vals)
@@ -535,6 +881,21 @@ class CAMELSReader:
         return M_dmo, M_bkg, M_rdm, M_bgas, M_egas, M_cgal, M_bcm
 
     def _check_masses(self):
+        """
+        Validate that mass profiles have the expected values.
+        
+        This method checks that the mass of each component equals the expected
+        fraction of the total mass within a specified tolerance.
+        
+        Raises
+        ------
+        ValueError
+            If any component's mass doesn't match its expected value.
+            
+        Notes
+        -----
+        Uses a relative tolerance of 1%.
+        """
         tol = 1e-2  # Tolerance for mass comparison
         if not np.isclose(self.masses['M_bgas'][-1], self.f_bgas * self.fixed_M_tot, rtol=tol):
             raise ValueError(f"Mass of baryons does not match: {self.masses['M_bgas'][-1]:.3e} != {self.f_bgas * self.fixed_M_tot:.3e}")
@@ -549,10 +910,41 @@ class CAMELSReader:
             raise ValueError(f"Mass of baryons does not match: {self.masses['M_nfw'][-1]:.3e} != {self.fixed_M_tot:.3e}")
     
     def _invert_mass_profile(self, M_bcm):
+        """
+        Create an interpolator to find radius given a mass.
+        
+        Parameters
+        ----------
+        M_bcm : numpy.ndarray
+            BCM cumulative mass profile.
+            
+        Returns
+        -------
+        callable
+            Function that returns radius given a mass value.
+        """
         from scipy.interpolate import interp1d
         return interp1d(M_bcm, self.r_vals, bounds_error=False, fill_value="extrapolate")
 
     def _compute_displacement(self, M_dmo, f_inv_bcm):
+        """
+        Compute displacement field for particles.
+        
+        This method calculates how much each particle needs to be moved
+        to transform the DMO density profile into the BCM profile.
+        
+        Parameters
+        ----------
+        M_dmo : numpy.ndarray
+            DMO cumulative mass profile.
+        f_inv_bcm : callable
+            Function that returns radius given a mass value.
+            
+        Returns
+        -------
+        numpy.ndarray
+            Displacement values at each radius.
+        """
         disp = np.zeros_like(self.r_vals)
         for i, r in enumerate(self.r_vals):
             M_target = M_dmo[i]
@@ -561,7 +953,17 @@ class CAMELSReader:
         return disp
     
     def _print_masses_at_infinity(self):
-        """Print the masses of all components at infinity."""
+        """
+        Print the masses of all components at the maximum calculated radius.
+        
+        This method displays the asymptotic mass values for each component
+        and their fractions of the total mass.
+        
+        Raises
+        ------
+        ValueError
+            If the radius array hasn't been created yet.
+        """
         if self.r_vals is None:
             raise ValueError("Radius array not created. Call calculate() first.")
         r_infinity_index = -1
@@ -585,7 +987,24 @@ class CAMELSReader:
     
     def _calculate_rdm(self, M_i, M_b):
         """
-        Calculate the RDM profile.
+        Calculate the RDM profile using the adiabatic contraction method.
+        
+        Parameters
+        ----------
+        M_i : numpy.ndarray
+            Initial mass profile.
+        M_b : numpy.ndarray
+            Baryonic mass profile.
+            
+        Returns
+        -------
+        tuple
+            (rho_rdm, M_rdm) - density and mass profiles for RDM.
+            
+        Raises
+        ------
+        ValueError
+            If the calculated mass doesn't match the expected value.
         """
         f_cdm = M_i/(M_i + M_b)
         M_f = f_cdm * M_i + M_b
@@ -609,7 +1028,21 @@ class CAMELSReader:
     
     def print_components(self, r = None):
         """
-        Print the components of the BCM.
+        Print all component values at a specific radius.
+        
+        This method displays the density values of all components at the
+        specified radius, along with key halo parameters.
+        
+        Parameters
+        ----------
+        r : float, optional
+            Radius in Mpc/h. If None, uses the maximum calculated radius.
+            
+        Raises
+        ------
+        ValueError
+            If the radius array hasn't been created yet or if the specified
+            radius is out of bounds.
         """
         if self.r_vals is None:
             raise ValueError("Radius array not created. Call calculate() first.")
@@ -642,6 +1075,27 @@ class CAMELSReader:
     def calculate(self, r_min=0.001, r_max=None, n_points=1000):
         """
         Calculate all BCM profiles and properties.
+        
+        This method performs the complete BCM calculation, computing density
+        profiles, mass profiles, and displacement fields.
+        
+        Parameters
+        ----------
+        r_min : float, default 0.001
+            Minimum radius in Mpc/h for calculations.
+        r_max : float, optional
+            Maximum radius in Mpc/h. If None, uses 10000 times r200.
+        n_points : int, default 1000
+            Number of radius points for calculations.
+            
+        Returns
+        -------
+        self : CAMELSReader
+            Returns self for method chaining.
+            
+        Notes
+        -----
+        Results are stored in the components dictionary attribute.
         """
         if r_max is None:
             r_max = 10000 * self.r200 
@@ -702,7 +1156,29 @@ class CAMELSReader:
     
     def apply_displacement(self, particles=None):
         """
-        Apply the displacement to the particles.
+        Apply calculated displacements to particles.
+        
+        This method moves particles according to the displacement field
+        calculated by the BCM to transform the DMO density into the BCM density.
+        
+        Parameters
+        ----------
+        particles : list or dict, optional
+            Particle data to use. If None, uses self.particles.
+            
+        Returns
+        -------
+        numpy.ndarray or None
+            Array of new particle positions. None if there's an error.
+            
+        Raises
+        ------
+        ValueError
+            If the radius array hasn't been created yet.
+            
+        Notes
+        -----
+        Particles are displaced radially, preserving their angular positions.
         """
         if particles is None:
             particles = self.particles
@@ -752,7 +1228,15 @@ class CAMELSReader:
     
     def plot_density_profiles(self):
         """
-        Plot the density profiles of the components.
+        Plot the density profiles of all components.
+        
+        This method creates a log-log plot showing the density profiles
+        of all BCM components and the DMO profile for comparison.
+        
+        Raises
+        ------
+        ValueError
+            If the radius array hasn't been created yet.
         """
         if self.r_vals is None:
             raise ValueError("Radius array not created. Call calculate() first.")
@@ -775,7 +1259,15 @@ class CAMELSReader:
     
     def plot_displacement(self):
         """
-        Plot the displacement of the particles.
+        Plot the displacement field.
+        
+        This method creates a semi-log plot showing how particle displacement
+        varies with radius.
+        
+        Raises
+        ------
+        ValueError
+            If the radius array hasn't been created yet.
         """
         if self.r_vals is None:
             raise ValueError("Radius array not created. Call calculate() first.")
@@ -792,7 +1284,21 @@ class CAMELSReader:
     
     def calc_displ_and_compare_powerspectrum(self, output_file=None):
         """
-        Calculate the power spectrum of the components.
+        Calculate power spectra for DMO and BCM particle distributions.
+        
+        This method computes the displacement field, applies it to particles,
+        and calculates power spectra for both the original and displaced particles.
+        
+        Parameters
+        ----------
+        output_file : str, optional
+            If provided, results will be saved to this file.
+            
+        Returns
+        -------
+        tuple or None
+            (k_dmo, Pk_dmo, k_bcm, Pk_bcm) - wavenumbers and power spectra.
+            None if there's an error in processing.
         """
         # Get particles associated with halos only
         total_particles = 0
@@ -824,7 +1330,19 @@ class CAMELSReader:
     
     def calc_power_spectrum(self):
         """
-        Calculate the power spectrum of the components.
+        Calculate and plot the power spectrum of particles.
+        
+        This method computes the power spectrum of the particle distribution
+        and displays it.
+        
+        Returns
+        -------
+        None
+        
+        Notes
+        -----
+        Uses the utility function calc_power_spectrum for computation and
+        plot_power_spectrum for visualization.
         """
         particles_dict = self.get_halo_particles()
         if particles_dict is None:
@@ -844,4 +1362,3 @@ if __name__ == "__main__":
     test = CAMELSReader(path_group = 'BCM/tests/Data/groups_014_dm.hdf5',path_snapshot = 'BCM/tests/#Data/snapshot_014_dm.hdf5',index=11)
     test.init_calculations(M200=1e14, r200=0.77, c=3.2, h=0.6777, z=0, 
                  Omega_m=0.3071, f=None, verbose=False)
-    

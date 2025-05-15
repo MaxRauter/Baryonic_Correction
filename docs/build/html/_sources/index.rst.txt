@@ -3,8 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Baryonic_Correction_Model documentation
-=======================================
+Welcome to Baryonic Correction's documentation!
+==============================================
 
 .. toctree::
    :maxdepth: 2
@@ -13,12 +13,5 @@ Baryonic_Correction_Model documentation
    introduction
    installation
    usage
-   api
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+   api/index
 
