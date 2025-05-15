@@ -1,0 +1,21 @@
+Metadata-Version: 2.4
+Name: BCM
+Version: 0.1.0
+Summary: Baryonic Correction Model
+Author: Your Name
+Requires-Python: >=3.6
+Requires-Dist: numpy
+Requires-Dist: scipy
+Requires-Dist: matplotlib
+Requires-Dist: h5py
+Requires-Dist: hdf5plugin
+Requires-Dist: tqdm
+Provides-Extra: docs
+Requires-Dist: sphinx>=4.0.0; extra == "docs"
+Requires-Dist: sphinx_rtd_theme; extra == "docs"
+Requires-Dist: sphinx-autodoc-typehints; extra == "docs"
+Dynamic: author
+Dynamic: provides-extra
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary

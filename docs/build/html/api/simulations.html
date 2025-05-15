@@ -99,6 +99,20 @@
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">BCM.simulations.</span></span><span class="sig-name descname"><span class="pre">CAMELSReader</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path_group</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path_snapshot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">index</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/simulations.html#CAMELSReader"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
 <dd><p>A class for reading and handling CAMELS simulation data.
 Stores important parameters from the simulations.</p>
+<p>Initialize the CAMELSReader with optional paths to group and snapshot data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path_group</strong> (<em>str</em><em>, </em><em>optional</em>) – Path to the directory containing the group (halo) data.</p></li>
+<li><p><strong>path_snapshot</strong> (<em>str</em><em>, </em><em>optional</em>) – Path to the directory containing the snapshot (simulation) data.</p></li>
+<li><p><strong>index</strong> (<em>int</em><em>, </em><em>optional</em>) – Index of the simulation or snapshot to load.</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em><em>, </em><em>default False</em>) – If True, enables verbose output during data loading.</p></li>
+</ul>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>If <cite>path_group</cite> is provided, halo data will be loaded automatically.
+If <cite>path_snapshot</cite> is provided, simulation and particle data will be loaded automatically.</p>
 <dl class="py method">
 <dt class="sig sig-object py">
 <span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path_group</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path_snapshot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">index</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/BCM/simulations.html#CAMELSReader.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
@@ -147,10 +161,7 @@ After initialization, the calculation is automatically performed.</p>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p><strong>self</strong> – Returns self for method chaining.</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>CAMELSReader</p>
+<dd class="field-even"><p><strong>self</strong> (<em>CAMELSReader</em>) – Returns self for method chaining.</p>
 </dd>
 </dl>
 <p class="rubric">Notes</p>
@@ -174,10 +185,7 @@ profiles, mass profiles, and displacement fields.</p>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p><strong>self</strong> – Returns self for method chaining.</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>CAMELSReader</p>
+<dd class="field-even"><p><strong>self</strong> (<em>CAMELSReader</em>) – Returns self for method chaining.</p>
 </dd>
 </dl>
 <p class="rubric">Notes</p>
@@ -201,10 +209,7 @@ using the provided normalization constants.</p>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>All density profiles: (rho_dmo, rho_nfw, rho_bkg, y_bgas, y_egas, y_cgal, y_rdm, rho_bcm).</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>tuple</p>
+<dd class="field-even"><p><em>tuple</em> – All density profiles: (rho_dmo, rho_nfw, rho_bkg, y_bgas, y_egas, y_cgal, y_rdm, rho_bcm).</p>
 </dd>
 </dl>
 <p class="rubric">Notes</p>
@@ -231,10 +236,7 @@ mass as a function of radius for each component.</p>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>All mass profiles: (M_dmo, M_bkg, M_rdm, M_bgas, M_egas, M_cgal, M_bcm).</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>tuple</p>
+<dd class="field-even"><p><em>tuple</em> – All mass profiles: (M_dmo, M_bkg, M_rdm, M_bgas, M_egas, M_cgal, M_bcm).</p>
 </dd>
 </dl>
 <p class="rubric">Notes</p>
@@ -255,13 +257,10 @@ calculated by the BCM to transform the DMO density into the BCM density.</p>
 <dd class="field-odd"><p><strong>particles</strong> (<em>list</em><em> or </em><em>dict</em><em>, </em><em>optional</em>) – Particle data to use. If None, uses self.particles.</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Array of new particle positions. None if there’s an error.</p>
+<dd class="field-even"><p><em>numpy.ndarray or None</em> – Array of new particle positions. None if there’s an error.</p>
 </dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>numpy.ndarray or None</p>
-</dd>
-<dt class="field-even">Raises<span class="colon">:</span></dt>
-<dd class="field-even"><p><strong>ValueError</strong> – If the radius array hasn’t been created yet.</p>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>ValueError</strong> – If the radius array hasn’t been created yet.</p>
 </dd>
 </dl>
 <p class="rubric">Notes</p>
@@ -281,14 +280,11 @@ are retrieved.</p>
 all particles from the snapshot are returned.</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>A dictionary containing particle data with the following keys:
+<dd class="field-even"><p><em>dict or None</em> – A dictionary containing particle data with the following keys:
 - ‘pos’: positions of particles in Mpc/h
 - ‘vel’: velocities of particles in appropriate units
 - ‘id’: particle IDs
 Returns None if the file does not exist or if there’s an error loading the data.</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>dict or None</p>
 </dd>
 </dl>
 <p class="rubric">Notes</p>
@@ -307,14 +303,11 @@ of the halo they belong to.</p>
 If None, relative positions are calculated for all halos.</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>If <cite>index</cite> is provided, returns a numpy array of shape (N, 3) containing
+<dd class="field-even"><p><em>numpy.ndarray or dict</em> – If <cite>index</cite> is provided, returns a numpy array of shape (N, 3) containing
 the positions of N particles relative to the halo center.
 If <cite>index</cite> is None, returns a dictionary mapping halo indices to their
 relative particle positions.
 Returns None if there’s an error processing the data.</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>numpy.ndarray or dict</p>
 </dd>
 </dl>
 <p class="rubric">Notes</p>
@@ -360,11 +353,8 @@ and calculates power spectra for both the original and displaced particles.</p>
 <dd class="field-odd"><p><strong>output_file</strong> (<em>str</em><em>, </em><em>optional</em>) – If provided, results will be saved to this file.</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>(k_dmo, Pk_dmo, k_bcm, Pk_bcm) - wavenumbers and power spectra.
+<dd class="field-even"><p><em>tuple or None</em> – (k_dmo, Pk_dmo, k_bcm, Pk_bcm) - wavenumbers and power spectra.
 None if there’s an error in processing.</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>tuple or None</p>
 </dd>
 </dl>
 </dd></dl>

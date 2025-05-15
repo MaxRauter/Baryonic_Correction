@@ -32,8 +32,6 @@ Baryonic Components
 Dark Matter Components
 ~~~~~~~~~~~~~~~~~~~~~
 
-.. autofunction:: y_rdm
-
 .. autofunction:: y_rdm_fixed_xi
 
 .. autofunction:: y_rdm_ac
