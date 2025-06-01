@@ -14,8 +14,8 @@ sys.path.insert(0, os.path.abspath('../..'))  # Go up two levels to reach projec
 
 # Add a quick test to verify imports are working
 try:
-    import BCM
-    print(f"BCM imported successfully from {BCM.__file__}")
+    import Baryonic_Correction
+    print(f"BCM imported successfully from {Baryonic_Correction.__file__}")
 except ImportError as e:
     print(f"Failed to import BCM: {e}")
 

@@ -1,0 +1,106 @@
+Metadata-Version: 2.4
+Name: baryonic-correction
+Version: 0.0.1
+Summary: Baryonic correction for N-body simulations
+Home-page: https://github.com/MaxRauter/Baryonic_Correction
+Author: Max Rauter
+Author-email: Max Rauter <maxi.rauter@gmx.net>
+License: MIT
+Project-URL: Homepage, https://github.com/MaxRauter/Baryonic_Correction
+Project-URL: Issues, https://github.com/MaxRauter/Baryonic_Correction/issues
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Topic :: Scientific/Engineering :: Astronomy
+Classifier: Topic :: Scientific/Engineering :: Physics
+Requires-Python: >=3.6
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: numpy
+Requires-Dist: scipy
+Requires-Dist: matplotlib
+Requires-Dist: h5py
+Requires-Dist: hdf5plugin
+Requires-Dist: tqdm
+Provides-Extra: docs
+Requires-Dist: sphinx>=4.0.0; extra == "docs"
+Requires-Dist: sphinx_rtd_theme; extra == "docs"
+Requires-Dist: sphinx-autodoc-typehints; extra == "docs"
+Dynamic: author
+Dynamic: home-page
+Dynamic: license-file
+Dynamic: requires-python
+
+# Baryonic_Correction_Model
+
+## Description
+A Python package for applying a baryonic correction model to cosmological simulations following Schneider & Teyssier 2015. This tool helps account for the effects of baryonic physics on dark matter distributions, improving the accuracy of cosmological models without the need for expensive hydrodynamic simulations.
+
+With ever-increasing compute power, cosmological simulations have become more accurate and span larger ranges of redshift and space. But increasing accuracy still comes with a price because ydrodynamic simulations are computationally very expensive compared to only N-Body ones. The baryonic correction method proposed by Schneider & Teyssier in 2015 
+
+
+## Table of Contents
+- [Usage](#usage)
+- [Requirements](#requirements)
+- [User Stories](#user-stories)
+- [Examples](#examples)
+- [License](#license)
+- [Authors](#authors)
+
+
+## Usage
+
+```python
+import baryonic_correction as bc
+
+# Load simulation data from Dm Snapshot
+data = bc.load_simulation("path/to/simulation")
+
+# Apply baryonic correction
+corrected_data = bc.apply_correction(data)
+
+# Save or analyze results
+bc.save_results(corrected_data, "path/to/output")
+```
+
+## Requirements
+- Baryonic correction methods depend on a lot of formulas and profiles which can be quickly overwhelming. This package aims to make it easy to correct N-body simulations to come close to the computationally more expensive hydrodynamic ones.
+- This package should be able to read in local CAMELS dark matter snapshots and go through halo by halo and calculate a displacement function. This displacement is then added for each halo respectively and returned as a snapshot. Comparison between two snapshots for accuracy testing.
+- Correct reading of snapshot in two files (group, and snapshot) is necessary for further calculations. Accurate modelling from Schneider & Teyssier 2015 will provide accurate results without much computation. The comparison is necessary to verify the results with actual dark matter and hydrodynamic simulations.
+- Dependencies:
+    - Python 3.8+
+    - NumPy
+    - SciPy
+    - Matplotlib
+    - Astropy
+    - h5py (for HDF5 file support)
+
+## User stories
+- Max is working with CAMELS Simulations and wants to add a mass threshold to halo masses because small halos have very little impact but take a reasonable amount of computational time.
+- Max is working with subparts of CAMELS and wants to simulate with custom parameters because different halos maybe need different model parameters.
+
+- Max is trying different Simulations and needs to be able to customize input necessary parameters if datastructure is different from camles. To allow tool to work with a wider variety of simulations.
+- Max was working with various CAMELS snapshots and wants to add input checks because the use of gas+dm simulations for the correction can be calculated but makes no sense.
+
+
+## Examples
+### Example: Basic Correction and Verification
+```python
+import baryonic_correction as bc
+
+# Apply default correction to a simulation
+data = bc.load_simulation("examples/dm_only_sim.hdf5")
+corrected = bc.apply_correction(data)
+bc.verify_sim(corrected,"examples/gas_sim.hdf5")
+```
+
+## License
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Authors
+- Maximilian Rauter - [GitHub](https://github.com/MaxRauter)

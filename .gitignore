@@ -16,7 +16,7 @@ __pycache__/
 
 # Ignore test data
 BCM/tests/Data/
-
+/Pylians3
 # Ignore local runtest file
 bcm_runtest.py
 
