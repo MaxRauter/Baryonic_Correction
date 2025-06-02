@@ -505,7 +505,7 @@ def y_rdm_ac(r, r_s, rho0, r_tr, norm=1.0,
         print(f"  Min xi: {xi_vals.min():.6f}")
         print(f"  Max xi: {xi_vals.max():.6f}")
         print(f"  Mean xi: {xi_vals.mean():.6f}")
-        print(f"  Xi = 1 count: {np.sum(np.isclose(xi_vals, 1.0, atol=1e-3))}")
+        print(f"  Xi = 1 count: {np.sum(np.isclose(xi_vals, 1.0, atol=1e-3))/ len(xi_vals)}")
     
     return out
 

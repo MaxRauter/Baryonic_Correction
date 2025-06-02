@@ -45,6 +45,7 @@ class CAMELSReader:
         if path_group and os.path.exists(path_group):
             self._load_halodata()
         if path_snapshot and os.path.exists(path_snapshot):
+            print(f"Loading snapshot data...")
             self._load_simdata()
             self._load_particles()
         
@@ -1657,7 +1658,6 @@ class CAMELSReader:
         
         # ... rest of your code ...
         
-        
     def calc_displ_and_compare_powerspectrum_from_csv(self, csv_dir="halo_data/displacement_all_halos", output_file=None):
         """
         Calculate power spectra using pre-computed displacement data from CSV files.
@@ -1750,3 +1750,283 @@ class CAMELSReader:
         )
         
         return k_dmo, Pk_dmo, k_bcm, Pk_bcm
+    
+    
+    # Batch methods for mass and radius calculations
+    def _batch_load_particles(self, halo_indices):
+        """
+        Load particles for multiple halos in a single HDF5 operation.
+        
+        This reduces I/O overhead by reading the entire particle dataset once
+        and extracting data for all requested halos.
+        
+        Parameters
+        ----------
+        halo_indices : list
+            List of halo indices to load particles for
+            
+        Returns
+        -------
+        dict
+            Mapping of halo_index -> {'pos': array, 'vel': array, 'id': array}
+        """
+        particles_dict = {}
+        
+        print(f"Batch loading particles for {len(halo_indices)} halos...")
+        
+        with h5py.File(self.path_snapshot, 'r') as f:
+            if 'PartType1' in f:
+                parttype1 = f['PartType1']
+                
+                # ✅ OPTIMIZATION: Single large read instead of many small reads
+                coords = parttype1['Coordinates'][:]  # Read entire dataset once
+                vels = parttype1['Velocities'][:]
+                ids = parttype1['ParticleIDs'][:]
+                
+                # Extract data for each halo from the loaded arrays
+                for halo_idx in halo_indices:
+                    start = self._calc_offset(halo_idx)
+                    stop = start + self.halo['lentype_h'][halo_idx][1]
+                    
+                    particles_dict[halo_idx] = {
+                        'pos': coords[start:stop] / 1e3,  # Convert to Mpc/h
+                        'vel': vels[start:stop] / 1e3,
+                        'id': ids[start:stop]
+                    }
+        
+        return particles_dict
+    
+    def _batch_calculate_bcm_parameters(self, halo_indices):
+        """
+        Pre-calculate BCM parameters for a batch of halos.
+        
+        This avoids redundant cosmological parameter setup for each halo.
+        
+        Parameters
+        ----------
+        halo_indices : list
+            List of halo indices to process
+            
+        Returns
+        -------
+        dict
+            Mapping of halo_index -> bcm_parameters
+        """
+        bcm_params = {}
+        
+        # Set cosmological parameters once for the batch
+        original_index = self.index
+        
+        for halo_idx in halo_indices:
+            self.index = halo_idx
+            
+            # Extract halo properties
+            M200 = self.halo['m200'][halo_idx]
+            r200 = self.halo['r200'][halo_idx]
+            c = ut.calc_concentration(M200, self.z)
+            # ✅ OPTIMIZATION: Calculate parameters without full BCM calculation
+            bcm_params[halo_idx] = {
+                'M200': M200,
+                'r200': r200,
+                'c': c,
+                'r_s' : r200 / c,  # Scale radius for NFW profile
+                'r_tr' : 8 * r200,  # Truncation radius
+                'r_ej': par.DEFAULTS['r_ej_factor'] * r200,  # Ejection radius
+                'R_h' : par.DEFAULTS['R_h_factor'] * r200,
+                'fbar': self.fbar,
+                'f_rdm': af.f_rdm(self.fbar),
+                'f_bgas': af.f_bgas(M200, self.fbar),
+                'f_cgal': af.f_cgal(M200),
+                'f_egas': None  # Will calculate after others
+            }
+            
+            # Calculate f_egas (depends on other fractions)
+            f_bgas = bcm_params[halo_idx]['f_bgas']
+            f_cgal = bcm_params[halo_idx]['f_cgal']
+            bcm_params[halo_idx]['f_egas'] = af.f_egas(f_bgas, f_cgal, self.fbar)
+        
+        self.index = original_index
+        return bcm_params
+    
+    def _batch_write_results(self, batch_results, output_dir):
+        """
+        Write results for an entire batch to CSV files efficiently.
+        
+        Parameters
+        ----------
+        batch_results : dict
+            Results for all halos in the batch
+        output_dir : str
+            Output directory for CSV files
+        """
+        import pandas as pd
+        
+        # ✅ OPTIMIZATION: Accumulate data and write in batches
+        displacement_data = []
+        bcm_data = []
+        summary_data = []
+        
+        for halo_idx, results in batch_results.items():
+            # Displacement profiles
+            for i, (r, disp) in enumerate(zip(results['r_vals'], results['displacement'])):
+                displacement_data.append([halo_idx, i, r, disp])
+            
+            # BCM parameters
+            bcm_data.append([
+                halo_idx, results['M200'], results['r200'], results['c'],
+                results['fbar'], results['f_rdm'], results['f_bgas'], 
+                results['f_cgal'], results['f_egas']
+            ])
+            
+            # Summary data
+            summary_data.append([
+                halo_idx, results['M200'], results['r200'], results['c'],
+                results['particle_count'], self.z, self.h, self.Om, self.Ob
+            ])
+        
+        # Write all data at once (much faster than individual writes)
+        if displacement_data:
+            df = pd.DataFrame(displacement_data, 
+                            columns=['halo_id', 'r_index', 'r_val', 'displacement'])
+            df.to_csv(os.path.join(output_dir, 'batch_displacement.csv'), 
+                    mode='a', header=False, index=False)
+        
+        if bcm_data:
+            df = pd.DataFrame(bcm_data, 
+                            columns=['halo_id', 'M200', 'r200', 'c', 'fbar',
+                                    'f_rdm', 'f_bgas', 'f_cgal', 'f_egas'])
+            df.to_csv(os.path.join(output_dir, 'batch_bcm_parameters.csv'),
+                    mode='a', header=False, index=False)
+        
+    def calculate_displacement_all_halos_batched(self, min_mass=1e9, max_halos=None, 
+                                               batch_size=20, save_individual=True,
+                                               n_points = 200, 
+                                               output_dir="displacement_results"):
+        """
+        Calculate displacement for all halos using batch processing for efficiency.
+        
+        This method processes halos in batches to minimize I/O overhead and 
+        improve performance significantly.
+        
+        Parameters
+        ----------
+        min_mass : float, default 1e9
+            Minimum halo mass to process (Msun/h)
+        max_halos : int, optional
+            Maximum number of halos to process
+        batch_size : int, default 20
+            Number of halos to process in each batch
+        save_individual : bool, default True
+            Whether to save results to CSV
+        output_dir : str, default "displacement_results"
+            Directory to save results
+            
+        Returns
+        -------
+        dict
+            Results for all processed halos
+        """
+        import os
+        import pandas as pd
+        
+        if save_individual:
+            os.makedirs(output_dir, exist_ok=True)
+            # Initialize CSV files with headers
+            self._initialize_csv_files(output_dir)
+        
+        # Filter and sort halos
+        valid_halos = [i for i, mass in enumerate(self.halo['m200']) if mass >= min_mass]
+        if max_halos is not None:
+            # Sort by mass (descending) and take the most massive
+            mass_indices = sorted(valid_halos, key=lambda x: self.halo['m200'][x], reverse=True)
+            valid_halos = mass_indices[:max_halos]
+        
+        print(f"Processing {len(valid_halos)} halos in batches of {batch_size}\n")
+        
+        # ✅ MAIN OPTIMIZATION: Process in batches
+        original_index = self.index
+        all_results = {}
+        
+        try:
+            # Split halos into batches
+            for batch_start in tqdm(range(0, len(valid_halos), batch_size), 
+                                   desc="Processing batches"):
+                batch_end = min(batch_start + batch_size, len(valid_halos))
+                batch_halos = valid_halos[batch_start:batch_end]
+                
+                print(f"\nProcessing batch {batch_start//batch_size + 1}: "
+                      f"halos {batch_start}-{batch_end-1}")
+                
+                # Step 1: Batch load particles (major speedup)
+                particles_batch = self._batch_load_particles(batch_halos)
+                
+                # Step 2: Pre-calculate BCM parameters
+                bcm_params_batch = self._batch_calculate_bcm_parameters(batch_halos)
+                
+                # Step 3: Process each halo in the batch
+                batch_results = {}
+                for halo_idx in batch_halos:
+                    try:
+                        self.index = halo_idx
+                        
+                        # Use pre-loaded data and parameters
+                        particles = particles_batch[halo_idx]
+                        bcm_params = bcm_params_batch[halo_idx]
+                        
+                        # Set BCM parameters
+                        self.M200 = bcm_params['M200']
+                        self.r200 = bcm_params['r200']
+                        self.c = bcm_params['c']
+                        self.r_s = bcm_params['r_s']
+                        self.r_tr = bcm_params['r_tr']
+                        self.r_ej = bcm_params['r_ej']
+                        self.R_h = bcm_params['R_h']
+                        self.fbar = bcm_params['fbar']
+                        self.f_rdm = bcm_params['f_rdm']
+                        self.f_bgas = bcm_params['f_bgas']
+                        self.f_cgal = bcm_params['f_cgal']
+                        self.f_egas = bcm_params['f_egas']
+                        
+                        # Calculate BCM (this is still the slow part, but unavoidable)
+                        self.calculate(n_points=n_points)  # Reduced resolution
+                        
+                        # Store results
+                        batch_results[halo_idx] = {
+                            'r_vals': self.r_vals.copy(),
+                            'displacement': self.components['disp'].copy(),
+                            'particle_count': len(particles['pos']),
+                            **bcm_params
+                        }
+                        
+                    except Exception as e:
+                        print(f"Warning: Error processing halo {halo_idx}: {e}")
+                        continue
+                
+                # Step 4: Batch write results
+                if save_individual and batch_results:
+                    self._batch_write_results(batch_results, output_dir)
+                
+                all_results.update(batch_results)
+                
+                print(f"Completed batch {batch_start//batch_size + 1}: "
+                      f"{len(batch_results)}/{len(batch_halos)} successful")
+        
+        finally:
+            self.index = original_index
+        
+        print(f"\nCompleted processing: {len(all_results)}/{len(valid_halos)} halos successful")
+        return all_results
+    
+    def _initialize_csv_files(self, output_dir):
+        """Initialize CSV files with proper headers."""
+        import pandas as pd
+        
+        # Create empty DataFrames with headers and save
+        pd.DataFrame(columns=['halo_id', 'r_index', 'r_val', 'displacement']).to_csv(
+            os.path.join(output_dir, 'batch_displacement.csv'), index=False)
+        
+        pd.DataFrame(columns=['halo_id', 'M200', 'r200', 'c', 'fbar',
+                             'f_rdm', 'f_bgas', 'f_cgal', 'f_egas']).to_csv(
+            os.path.join(output_dir, 'batch_bcm_parameters.csv'), index=False) 
+                             
+
