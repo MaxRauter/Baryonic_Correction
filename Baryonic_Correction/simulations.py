@@ -17,7 +17,7 @@ class CAMELSReader:
     Stores important parameters from the simulations.
     """
     
-    def __init__(self, path_group=None, path_snapshot=None, index = None, verbose = False):
+    def __init__(self, path_group=None, path_snapshot=None, index = None, load_part = True, verbose = False):
         """
         Initialize the CAMELSReader with optional paths to group and snapshot data.
         
@@ -47,7 +47,8 @@ class CAMELSReader:
         if path_snapshot and os.path.exists(path_snapshot):
             print(f"Loading snapshot data...")
             self._load_simdata()
-            self._load_particles()
+            if load_part:
+                self._load_particles()
         
     def _load_halodata(self):
         """
@@ -1772,7 +1773,8 @@ class CAMELSReader:
         """
         particles_dict = {}
         
-        print(f"Batch loading particles for {len(halo_indices)} halos...")
+        if self.verbose:
+            print(f"Batch loading particles for {len(halo_indices)} halos...")
         
         with h5py.File(self.path_snapshot, 'r') as f:
             if 'PartType1' in f:
@@ -1950,18 +1952,20 @@ class CAMELSReader:
         try:
             # Split halos into batches
             for batch_start in tqdm(range(0, len(valid_halos), batch_size), 
-                                   desc="Processing batches"):
+                                    desc="Processing batches",
+                                    unit="batch"):
                 batch_end = min(batch_start + batch_size, len(valid_halos))
                 batch_halos = valid_halos[batch_start:batch_end]
                 
-                print(f"\nProcessing batch {batch_start//batch_size + 1}: "
-                      f"halos {batch_start}-{batch_end-1}")
+                #print(f"\rBatch {batch_start//batch_size + 1}: Loading particles for {len(batch_halos)} halos...", end='', flush=True)
                 
                 # Step 1: Batch load particles (major speedup)
                 particles_batch = self._batch_load_particles(batch_halos)
                 
                 # Step 2: Pre-calculate BCM parameters
                 bcm_params_batch = self._batch_calculate_bcm_parameters(batch_halos)
+                
+                #print(f"\rBatch {batch_start//batch_size + 1}: Processing BCM calculations...", end='', flush=True)
                 
                 # Step 3: Process each halo in the batch
                 batch_results = {}
@@ -1999,7 +2003,7 @@ class CAMELSReader:
                         }
                         
                     except Exception as e:
-                        print(f"Warning: Error processing halo {halo_idx}: {e}")
+                        print(f"\rWarning: Error processing halo {halo_idx}: {e}")
                         continue
                 
                 # Step 4: Batch write results
@@ -2008,8 +2012,7 @@ class CAMELSReader:
                 
                 all_results.update(batch_results)
                 
-                print(f"Completed batch {batch_start//batch_size + 1}: "
-                      f"{len(batch_results)}/{len(batch_halos)} successful")
+                #print(f"\rCompleted batch {batch_start//batch_size + 1}: {len(batch_results)}/{len(batch_halos)} successful")
         
         finally:
             self.index = original_index

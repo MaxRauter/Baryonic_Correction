@@ -871,8 +871,8 @@ def compare_power_spectra(dmo_positions, bcm_positions, box_size, output_file=No
     plt.figure(figsize=(10, 6))
     ratio = Pk_bcm / Pk_dmo
     plt.loglog(k_dmo, ratio, label='Ratio BCM/DMO', linestyle='--')
-    plt.loglog(k_dmo, Pk_dmo, label='DMO Power Spectrum', color='blue')
-    plt.loglog(k_bcm, Pk_bcm, label='BCM Power Spectrum', color='red')
+    #plt.loglog(k_dmo, Pk_dmo, label='DMO Power Spectrum', color='blue')
+    #plt.loglog(k_bcm, Pk_bcm, label='BCM Power Spectrum', color='red')
     plt.title('Power Spectrum Comparison: DMO vs BCM')
     plt.xlabel('k [h/Mpc]')
     plt.ylabel('P(k) [(Mpc/h)³]')
