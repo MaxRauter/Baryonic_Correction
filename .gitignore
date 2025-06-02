@@ -15,8 +15,12 @@ __pycache__/
 *.png
 
 # Ignore test data
-BCM/tests/Data/
+Baryonic_Correction/tests/Data
 /Pylians3
+/Pk_library
+/MAS_library
+/Halo_data
+
 # Ignore local runtest file
 bcm_runtest.py
 

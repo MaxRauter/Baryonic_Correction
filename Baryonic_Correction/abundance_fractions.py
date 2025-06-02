@@ -61,9 +61,9 @@ def g_func(x, alpha=-1.779, delta=4.394, gamma=0.547):
     The function is defined as:
     g(x) = -log10(10^alpha * x + 1) + delta * (log10(1 + exp(x)))^gamma / (1+exp(10*x))
     """
-    return - np.log10(10**(alpha) * x + 1) + delta * (np.log10(1 + np.exp(x)))**gamma / (1 + np.exp(10*x))
+    return - np.log10(10**(alpha * x) + 1) + delta * (np.log10(1 + np.exp(x)))**gamma / (1 + np.exp(10*x))
 
-def f_cgal(M, epsilon=0.023, M1=1.526e11):
+def f_cgal(M, epsilon=0.023, M1=1.526e11): # adjust epsilon = 0.31
     """
     Calculate the central galaxy stellar fraction as a function of halo mass.
     

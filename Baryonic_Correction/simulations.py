@@ -393,8 +393,7 @@ class CAMELSReader:
         # Return minimum and maximum mass for informational purposes
         return f"Mass range: {valid_masses.min():.2e} - {valid_masses.max():.2e} M_sun/h" + str
     
-    def init_calculations(self, M200=None, r200=None, c=None, h=None, z=None, 
-                 Omega_m=None, f=None, verbose=False):
+    def init_calculations(self, M200=None, r200=None, c=None, h=None, z=None, Omega_m=None, f=None, verbose=False):
         """
         Initialize the Baryonic Correction Model for a given halo.
         
@@ -434,40 +433,57 @@ class CAMELSReader:
         This method automatically calls the calculate() method after initialization.
         The abundance fractions must sum to 1.0 with a tolerance of 1e-6.
         """
-        # Store input parameters
-        self.M200 = self.halo['m200'][self.index] if self.index is not None else M200
-        self.r200 = self.halo['r200'][self.index] if self.index is not None else r200
-        self.h = h if h is not None else self.h
-        self.z = z if z is not None else self.z
-        self.Om = Omega_m if Omega_m is not None else self.Om
-        self.Ol = self.Ol if hasattr(self,"Ol") else 1 - self.Om
-        self.Ob = self.Ob if hasattr(self,"Ob") else par.DEFAULTS['Omega_b']
         
-        if c == None:
-            c = ut.calc_concentration(self.M200,self.z)
+        # FIXED: Set parameters in correct order - M200 and z BEFORE calculating concentration
+        
+        # First, set M200 and r200 from halo data or input parameters
+        if self.index is not None and hasattr(self, 'halo') and self.halo is not None:
+            self.M200 = self.halo['m200'][self.index] if M200 is None else M200
+            self.r200 = self.halo['r200'][self.index] if r200 is None else r200
+        else:
+            if M200 is None or r200 is None:
+                raise ValueError("M200 and r200 must be provided when no halo data is available")
+            self.M200 = M200
+            self.r200 = r200
+        
+        # Set cosmological parameters
+        self.h = h if h is not None else getattr(self, 'h', 0.6777)
+        self.z = z if z is not None else getattr(self, 'z', 0.0)
+        self.Om = Omega_m if Omega_m is not None else getattr(self, 'Om', 0.3071)
+        self.Ol = getattr(self, 'Ol', 1 - self.Om)
+        self.Ob = getattr(self, 'Ob', par.DEFAULTS['Omega_b'])
+        
+        # Validate that we have all required parameters
+        if self.M200 is None:
+            raise ValueError("M200 cannot be None. Please provide M200 or ensure halo data is loaded.")
+        if self.r200 is None:
+            raise ValueError("r200 cannot be None. Please provide r200 or ensure halo data is loaded.")
+        if self.z is None:
+            raise ValueError("Redshift (z) cannot be None. Please provide z or ensure simulation data is loaded.")
+        
+        # NOW calculate concentration (after M200 and z are set)
+        if c is None:
+            c = ut.calc_concentration(self.M200, self.z)
         self.c = c
-        self.fbar = self.Ob / self.Om if hasattr(self, 'Ob') else self.fbar if hasattr(self, 'fbar') else 0.0483
-        Omega_m = self.Om if hasattr(self, 'Om') else Omega_m
+        
+        # Calculate baryon fraction
+        self.fbar = self.Ob / self.Om if hasattr(self, 'Ob') else 0.0483
+        
+        # Set verbose mode
         self.verbose = verbose
         
-        
         # Derived parameters
-        self.r_s = r200 / c  # Scale radius for NFW profile
-        self.r_tr = 8 * r200  # Truncation radius
+        self.r_s = self.r200 / self.c  # Scale radius for NFW profile
+        self.r_tr = 8 * self.r200  # Truncation radius
         
         # Set abundance fractions
         self._set_abundance_fractions(f)
         
-        # Calculate other parameters if not provided
-        if r200 is None:
-            self.r_ej = ut.calc_r_ej2(M200, r200, z=z, Omega_m=Omega_m, 
-                                    Omega_Lambda=self.Ol, h=h)
-        else:
-            self.r_ej = par.DEFAULTS['r_ej_factor'] * self.r200
-        if r200 is None:
-            self.R_h = ut.calc_R_h(M200, r200)
-        else:
-            self.R_h = par.DEFAULTS['R_h_factor'] * self.r200
+        #self.write_af()
+        
+        # Calculate other parameters
+        self.r_ej = par.DEFAULTS['r_ej_factor'] * self.r200
+        self.R_h = par.DEFAULTS['R_h_factor'] * self.r200
         
         # Initialize component storage
         self.components = {}
@@ -477,7 +493,19 @@ class CAMELSReader:
             self._print_parameters()
             
         self.calculate()
+        
+        #return self
     
+    def write_af(self, path=None):
+        if path is None:
+            path = 'halo_data/abundance_fractions.txt'
+            
+        # Check if the file exists before writing
+        if not os.path.exists(os.path.dirname(path)):
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, 'a') as f:
+            f.write(f"{self.f_rdm:.6f} {self.f_bgas:.6f} {self.f_cgal:.6f} {self.f_egas:.6f}\n")
+        
     def _set_abundance_fractions(self, f):
         """
         Set abundance fractions based on input.
@@ -519,8 +547,8 @@ class CAMELSReader:
             if self.verbose:
                 print("Using custom abundance fractions.")
             self.f_rdm = af.f_rdm(self.fbar)
-            self.f_bgas = af.f_bgas(self.M200, self.fbar, self.z)
-            self.f_cgal = af.f_cgal(self.M200, self.z)
+            self.f_bgas = af.f_bgas(self.M200, self.fbar)
+            self.f_cgal = af.f_cgal(self.M200)
             self.f_egas = af.f_egas(self.f_bgas,self.f_cgal,self.fbar)
         
         # Validate fractions sum to 1.0
@@ -1362,7 +1390,363 @@ class CAMELSReader:
         
         ut.plot_power_spectrum(k, Pk)
     
-if __name__ == "__main__":
-    test = CAMELSReader(path_group = 'BCM/tests/Data/groups_014_dm.hdf5',path_snapshot = 'BCM/tests/#Data/snapshot_014_dm.hdf5',index=11)
-    test.init_calculations(M200=1e14, r200=0.77, c=3.2, h=0.6777, z=0, 
-                 Omega_m=0.3071, f=None, verbose=False)
+    def calculate_displacement_all_halos(self, min_mass=1e9, max_halos=None, save_individual=True, output_dir="displacement_results"):
+        """
+        Calculate displacement for all halos in the simulation and save to CSV files.
+    
+        Parameters
+        ----------
+        min_mass : float, default 1e12
+            Minimum halo mass to process (Msun/h)
+        max_halos : int, optional
+            Maximum number of halos to process
+        save_individual : bool, default True
+            Whether to save individual halo displacement data to CSV
+        output_dir : str, default "displacement_results"
+            Directory to save CSV results
+    
+        Returns
+        -------
+        dict
+            Dictionary containing displacement results for all processed halos
+        """
+        import os
+        import pandas as pd
+    
+        if save_individual:
+            os.makedirs(output_dir, exist_ok=True)
+    
+        # Filter halos
+        valid_halos = [i for i, mass in enumerate(self.halo['m200']) if mass >= min_mass]
+    
+        if max_halos is not None:
+            mass_indices = sorted(valid_halos, key=lambda x: self.halo['m200'][x], reverse=True)
+            valid_halos = mass_indices[:max_halos]
+    
+        print(f"Processing {len(valid_halos)} halos for displacement...")
+    
+        # Store original state
+        original_index = self.index
+    
+        # Storage for CSV data
+        halo_summary_data = []
+        displacement_profiles_data = []
+        density_profiles_data = []
+        mass_profiles_data = []
+        bcm_parameters_data = []
+    
+        try:
+            for halo_idx in tqdm(valid_halos, desc="Calculating displacements"):
+                try:
+                    # Set current halo
+                    self.index = halo_idx
+    
+                    # Get halo properties
+                    M200 = self.halo['m200'][halo_idx]
+                    r200 = self.halo['r200'][halo_idx]
+    
+                    # Initialize BCM
+                    self.init_calculations(
+                        M200=M200, r200=r200, c=None,
+                        h=self.h, z=self.z, Omega_m=self.Om,
+                        f=None, verbose=self.verbose,
+                    )
+    
+                    # Collect halo summary data
+                    halo_summary = {
+                        'halo_id': halo_idx,
+                        'M200': M200,
+                        'r200': r200,
+                        'z': self.z,
+                        'h': self.h,
+                        'Omega_m': self.Om,
+                        'Omega_b': self.Ob,
+                        'boxsize': self.boxsize,
+                        'time': getattr(self, 'time', 0.0),
+                        'processing_timestamp': pd.Timestamp.now()
+                    }
+                    halo_summary_data.append(halo_summary)
+    
+                    # Collect BCM parameters
+                    bcm_params = {
+                        'halo_id': halo_idx,
+                        'c': self.c,
+                        'r_s': self.r_s,
+                        'rho0': self.rho0,
+                        'f_rdm': self.f_rdm,
+                        'f_bgas': self.f_bgas,
+                        'f_cgal': self.f_cgal,
+                        'f_egas': self.f_egas,
+                        'fbar': self.fbar,
+                        'r_ej': self.r_ej,
+                        'R_h': self.R_h,
+                        'fixed_M_tot': self.fixed_M_tot
+                    }
+                    bcm_parameters_data.append(bcm_params)
+    
+                    # Collect profile data for each radius point
+                    n_points = len(self.r_vals)
+                    
+                    for j in range(n_points):
+                        # Displacement profile
+                        disp_row = {
+                            'halo_id': halo_idx,
+                            'r_index': j,
+                            'r_val': self.r_vals[j],
+                            'displacement': self.components['disp'][j]
+                        }
+                        displacement_profiles_data.append(disp_row)
+    
+                        # Density profiles
+                        density_row = {
+                            'halo_id': halo_idx,
+                            'r_index': j,
+                            'r_val': self.r_vals[j],
+                            'rho_dmo': self.components['rho_dmo'][j],
+                            'rho_bcm': self.components['rho_bcm'][j],
+                            'rho_bkg': self.components['rho_bkg'][j],
+                            'rho_rdm': self.components['rdm'][j],
+                            'rho_bgas': self.components['bgas'][j],
+                            'rho_egas': self.components['egas'][j],
+                            'rho_cgal': self.components['cgal'][j]
+                        }
+                        density_profiles_data.append(density_row)
+    
+                        # Mass profiles
+                        mass_row = {
+                            'halo_id': halo_idx,
+                            'r_index': j,
+                            'r_val': self.r_vals[j],
+                            'M_dmo': self.components['M_dmo'][j],
+                            'M_bcm': self.components['M_bcm'][j],
+                            'M_rdm': self.components['M_rdm'][j],
+                            'M_bgas': self.components['M_bgas'][j],
+                            'M_egas': self.components['M_egas'][j],
+                            'M_cgal': self.components['M_cgal'][j],
+                            'M_bkg': self.components['M_bkg'][j],
+                            'M_nfw': self.components['M_nfw'][j]
+                        }
+                        mass_profiles_data.append(mass_row)
+    
+                except Exception as e:
+                    print(f"Warning: Error processing halo {halo_idx}: {e}")
+                    continue
+    
+        finally:
+            # Restore original state
+            self.index = original_index
+    
+        # Convert to DataFrames and save CSV files
+        if save_individual and halo_summary_data:
+            
+            # Save halo summary
+            df_summary = pd.DataFrame(halo_summary_data)
+            summary_file = os.path.join(output_dir, "halo_summary.csv")
+            df_summary.to_csv(summary_file, index=False)
+            print(f"Saved halo summary to: {summary_file}")
+    
+            # Save BCM parameters
+            df_bcm_params = pd.DataFrame(bcm_parameters_data)
+            bcm_params_file = os.path.join(output_dir, "bcm_parameters.csv")
+            df_bcm_params.to_csv(bcm_params_file, index=False)
+            print(f"Saved BCM parameters to: {bcm_params_file}")
+    
+            # Save displacement profiles
+            df_displacement = pd.DataFrame(displacement_profiles_data)
+            displacement_file = os.path.join(output_dir, "displacement_profiles.csv")
+            df_displacement.to_csv(displacement_file, index=False)
+            print(f"Saved displacement profiles to: {displacement_file}")
+    
+            # Save density profiles
+            df_density = pd.DataFrame(density_profiles_data)
+            density_file = os.path.join(output_dir, "density_profiles.csv")
+            df_density.to_csv(density_file, index=False)
+            print(f"Saved density profiles to: {density_file}")
+    
+            # Save mass profiles
+            df_mass = pd.DataFrame(mass_profiles_data)
+            mass_file = os.path.join(output_dir, "mass_profiles.csv")
+            df_mass.to_csv(mass_file, index=False)
+            print(f"Saved mass profiles to: {mass_file}")
+    
+            # Create and save analysis summary
+            analysis_summary = {
+                'total_halos_processed': len(df_summary),
+                'mass_range_min': df_summary['M200'].min(),
+                'mass_range_max': df_summary['M200'].max(),
+                'redshift': df_summary['z'].iloc[0] if len(df_summary) > 0 else 0.0,
+                'h_param': df_summary['h'].iloc[0] if len(df_summary) > 0 else 0.6777,
+                'omega_m': df_summary['Omega_m'].iloc[0] if len(df_summary) > 0 else 0.3071,
+                'omega_b': df_summary['Omega_b'].iloc[0] if len(df_summary) > 0 else 0.048,
+                'boxsize': df_summary['boxsize'].iloc[0] if len(df_summary) > 0 else 25.0,
+                'mean_f_rdm': df_bcm_params['f_rdm'].mean(),
+                'std_f_rdm': df_bcm_params['f_rdm'].std(),
+                'mean_f_bgas': df_bcm_params['f_bgas'].mean(),
+                'std_f_bgas': df_bcm_params['f_bgas'].std(),
+                'mean_f_cgal': df_bcm_params['f_cgal'].mean(),
+                'std_f_cgal': df_bcm_params['f_cgal'].std(),
+                'mean_f_egas': df_bcm_params['f_egas'].mean(),
+                'std_f_egas': df_bcm_params['f_egas'].std(),
+                'mean_concentration': df_bcm_params['c'].mean(),
+                'std_concentration': df_bcm_params['c'].std(),
+                'processing_date': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'min_mass_threshold': min_mass,
+                'max_halos_limit': max_halos
+            }
+    
+            # Save analysis summary
+            df_analysis = pd.DataFrame([analysis_summary])
+            analysis_file = os.path.join(output_dir, "analysis_summary.csv")
+            df_analysis.to_csv(analysis_file, index=False)
+            print(f"Saved analysis summary to: {analysis_file}")
+    
+            # Save a detailed text summary
+            summary_text_file = os.path.join(output_dir, "displacement_summary.txt")
+            with open(summary_text_file, 'w') as f:
+                f.write("Displacement Analysis Summary\n")
+                f.write("============================\n\n")
+                f.write(f"Processing Date: {analysis_summary['processing_date']}\n")
+                f.write(f"Total Halos Processed: {analysis_summary['total_halos_processed']}\n")
+                f.write(f"Mass Range: {analysis_summary['mass_range_min']:.2e} - {analysis_summary['mass_range_max']:.2e} Msun/h\n")
+                f.write(f"Redshift: {analysis_summary['redshift']:.3f}\n")
+                f.write(f"Cosmological Parameters:\n")
+                f.write(f"  h = {analysis_summary['h_param']:.4f}\n")
+                f.write(f"  Omega_m = {analysis_summary['omega_m']:.4f}\n")
+                f.write(f"  Omega_b = {analysis_summary['omega_b']:.4f}\n")
+                f.write(f"  Boxsize = {analysis_summary['boxsize']:.1f} Mpc/h\n\n")
+                f.write(f"Mean BCM Parameters:\n")
+                f.write(f"  f_rdm:  {analysis_summary['mean_f_rdm']:.4f} ± {analysis_summary['std_f_rdm']:.4f}\n")
+                f.write(f"  f_bgas: {analysis_summary['mean_f_bgas']:.4f} ± {analysis_summary['std_f_bgas']:.4f}\n")
+                f.write(f"  f_cgal: {analysis_summary['mean_f_cgal']:.4f} ± {analysis_summary['std_f_cgal']:.4f}\n")
+                f.write(f"  f_egas: {analysis_summary['mean_f_egas']:.4f} ± {analysis_summary['std_f_egas']:.4f}\n")
+                f.write(f"  c:      {analysis_summary['mean_concentration']:.4f} ± {analysis_summary['std_concentration']:.4f}\n\n")
+                f.write(f"Files Generated:\n")
+                f.write(f"  - halo_summary.csv: Basic halo properties\n")
+                f.write(f"  - bcm_parameters.csv: BCM model parameters for each halo\n")
+                f.write(f"  - displacement_profiles.csv: Displacement vs radius for each halo\n")
+                f.write(f"  - density_profiles.csv: Density profiles for all components\n")
+                f.write(f"  - mass_profiles.csv: Mass profiles for all components\n")
+                f.write(f"  - analysis_summary.csv: Overall statistics\n")
+    
+            print(f"Saved detailed summary to: {summary_text_file}")
+    
+            # Return summary data for further analysis
+            return {
+                'summary': df_summary,
+                'bcm_parameters': df_bcm_params,
+                'displacement_profiles': df_displacement,
+                'density_profiles': df_density,
+                'mass_profiles': df_mass,
+                'analysis_summary': analysis_summary
+            }
+    
+        else:
+            print("No valid halo data to save!")
+            return {}
+    
+        print(f"Displacement calculation completed for {len(halo_summary_data)} halos")
+        print(f"All results saved to directory: {output_dir}")
+    
+        # ... your existing code ...
+        
+        print("="*50)
+        print("TESTING ABUNDANCE FRACTIONS")
+        print("="*50)
+        test_g_func_and_fractions()
+        print("="*50)
+        
+        # ... rest of your code ...
+        
+        
+    def calc_displ_and_compare_powerspectrum_from_csv(self, csv_dir="halo_data/displacement_all_halos", output_file=None):
+        """
+        Calculate power spectra using pre-computed displacement data from CSV files.
+        
+        This method reads displacement profiles from CSV files generated by 
+        calculate_displacement_all_halos() and applies them to compute power spectra.
+        
+        Parameters
+        ----------
+        csv_dir : str, default "displacement_results"
+            Directory containing CSV files with displacement data
+        output_file : str, optional
+            If provided, results will be saved to this file
+            
+        Returns
+        -------
+        tuple or None
+            (k_dmo, Pk_dmo, k_bcm, Pk_bcm) - wavenumbers and power spectra
+        """
+        import pandas as pd
+        import os
+        
+        # Check if CSV files exist
+        disp_file = os.path.join(csv_dir, "displacement_profiles.csv")
+        if not os.path.exists(disp_file):
+            print(f"Error: Displacement file not found: {disp_file}")
+            print("Run calculate_displacement_all_halos() first!")
+            return None
+        
+        # Load displacement data
+        df_disp = pd.read_csv(disp_file)
+        
+        print("Loading displacement data from CSV...")
+        
+        # Get original particle positions for all halos
+        all_dmo_positions = []
+        all_bcm_positions = []
+        
+        # Process each halo
+        for halo_id in tqdm(df_disp['halo_id'].unique(), desc="Applying displacements from CSV"):
+            try:
+                # Get particles for this halo
+                particles = self.get_halo_particles(halo_id)
+                if particles is None or 'pos' not in particles:
+                    continue
+                    
+                # Get halo center
+                center = self.get_halo_center(halo_id)
+                rel_pos = particles['pos'] - center
+                r = np.linalg.norm(rel_pos, axis=1)
+                
+                # Get displacement profile for this halo
+                halo_disp_data = df_disp[df_disp['halo_id'] == halo_id]
+                r_vals = halo_disp_data['r_val'].values
+                disp_vals = halo_disp_data['displacement'].values
+                
+                # Interpolate displacement for particle radii
+                disp = np.interp(r, r_vals, disp_vals)
+                
+                # Apply displacement
+                with np.errstate(invalid='ignore', divide='ignore'):
+                    direction = np.zeros_like(rel_pos)
+                    mask = r > 0
+                    direction[mask] = rel_pos[mask] / r[mask, np.newaxis]
+                
+                new_rel_pos = rel_pos + direction * disp[:, np.newaxis]
+                new_pos = new_rel_pos + center
+                
+                # Store positions
+                all_dmo_positions.append(particles['pos'])
+                all_bcm_positions.append(new_pos)
+                
+            except Exception as e:
+                print(f"Warning: Error processing halo {halo_id}: {e}")
+                continue
+        
+        if not all_dmo_positions:
+            print("Error: No valid particle data found")
+            return None
+        
+        # Combine all positions
+        dmo_positions = np.vstack(all_dmo_positions)
+        bcm_positions = np.vstack(all_bcm_positions)
+        
+        print(f"Total particles: DMO={len(dmo_positions)}, BCM={len(bcm_positions)}")
+        
+        # Calculate power spectra
+        k_dmo, Pk_dmo, k_bcm, Pk_bcm = ut.compare_power_spectra(
+            dmo_positions, bcm_positions, self.boxsize, output_file
+        )
+        
+        return k_dmo, Pk_dmo, k_bcm, Pk_bcm

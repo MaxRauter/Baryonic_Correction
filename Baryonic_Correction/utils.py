@@ -31,7 +31,8 @@ def calc_concentration(M200, z):
     where A=5.71, B=-0.084, C=-0.47, and Mpivot=2e12 Msun/h
     """
     if z is None:
-        ValueError(f"Invalid z value in concentration calculation: {z}") 
+        raise ValueError(f"Invalid z value in concentration calculation: {z}")  # Fixed: added 'raise'
+    
     Mpivot = 2e12  # Msun/h
     A = 5.71
     B = -0.084
@@ -723,7 +724,7 @@ def calc_power_spectrum(positions, box_size, mesh_size=512):
             power_binned[i] = np.mean(power[mask])
     return k_vals, power_binned
 
-def calc_power_spectrum_new(positions, box_size, masses=None, mesh_size=512):
+def calc_power_spectrum_new(positions, box_size, mass=None, mesh_size=512):
     """
     Calculate the matter power spectrum using FFT and NGP mass assignment.
     
@@ -748,6 +749,10 @@ def calc_power_spectrum_new(positions, box_size, masses=None, mesh_size=512):
     This implementation uses Nearest Grid Point (NGP) assignment to create 
     the density field before applying the FFT.
     """
+    # Ensure proper data types for Pylians3
+    positions = np.asarray(positions, dtype=np.float32)
+    box_size = float(box_size)
+    
     # For DM-only simulations, set equal masses if not provided
     if mass is None:
         # Option 1: Equal masses (most common for DM-only)
@@ -860,9 +865,9 @@ def compare_power_spectra(dmo_positions, bcm_positions, box_size, output_file=No
             print(f"Using only the first {len(dmo_positions)} BCM particles to match DMO count")
             bcm_positions = bcm_positions[:len(dmo_positions)]
     print("Calculating power spectrum for DMO")
-    k_dmo, Pk_dmo = calc_power_spectrum2(dmo_positions, box_size)
+    k_dmo, Pk_dmo = calc_power_spectrum_new(dmo_positions, box_size)
     print("Calculating power spectrum for BCM")
-    k_bcm, Pk_bcm = calc_power_spectrum2(bcm_positions, box_size)
+    k_bcm, Pk_bcm = calc_power_spectrum_new(bcm_positions, box_size)
     plt.figure(figsize=(10, 6))
     ratio = Pk_bcm / Pk_dmo
     plt.loglog(k_dmo, ratio, label='Ratio BCM/DMO', linestyle='--')
