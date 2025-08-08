@@ -160,6 +160,35 @@ def calc_R_h(M200, r200):
         mass_factor = 1.0
     return R_h_base * mass_factor
 
+def rho_crit(z, h):
+    """
+    Calculate the critical density of the universe at redshift z.
+    
+    Parameters
+    ----------
+    z : float
+        Redshift
+    h : float
+        Dimensionless Hubble parameter
+        
+    Returns
+    -------
+    float
+        Critical density in units of Msun/h / (Mpc/h)^3
+    """
+    # Critical density at z=0 in units of Msun/h / (Mpc/h)^3
+    # rho_crit_0 = 3 * H0^2 / (8 * pi * G)
+    # H0 = 100 * h km/s/Mpc
+    # G = 4.301e-9 Mpc/Msun * (km/s)^2
+    
+    # Critical density at z=0 in Msun/h / (Mpc/h)^3
+    rho_crit_0 = 2.775e11  # This is the standard value
+    
+    # Scale with redshift assuming flat ΛCDM with Ω_m ≈ 0.3, Ω_Λ ≈ 0.7
+    E_z_squared = 0.3 * (1 + z)**3 + 0.7  # Simplified for flat ΛCDM
+    
+    return rho_crit_0 * E_z_squared
+
 def bracket_rho0(M_target, r_s, r_tr, r200, r_max=None):
     """
     Solve for the NFW density normalization (rho0) that produces a specified enclosed mass.
@@ -825,7 +854,7 @@ def calc_power_spectrum2(positions, box_size, grid_size=512):
     Pk = Pk[:-1]
     return k_centers, Pk
 
-def compare_power_spectra(dmo_positions, bcm_positions, box_size, output_file=None):
+def compare_power_spectra(dmo_positions, bcm_positions, dmb_positions, box_size, output_file=None):
     """
     Compare power spectra between DMO and BCM simulations and plot their ratio.
     
@@ -855,6 +884,39 @@ def compare_power_spectra(dmo_positions, bcm_positions, box_size, output_file=No
     -----
     If the particle counts don't match, the function will truncate the larger dataset.
     """
+    # Rename variables for consistency with the rest of the function
+    pos1 = dmo_positions
+    pos2 = bcm_positions
+    pos3 = dmb_positions
+    
+    # Validate and clean input data
+    for i, pos in enumerate([pos1, pos2, pos3]):
+        if pos is None:
+            continue
+            
+        # Check for invalid values
+        valid_mask = ~np.isnan(pos).any(axis=1) & ~np.isinf(pos).any(axis=1)
+        if not np.all(valid_mask):
+            print(f"Warning: Found {np.sum(~valid_mask)} invalid positions in dataset {i+1}")
+            if i == 0:
+                pos1 = pos[valid_mask]
+            elif i == 1:
+                pos2 = pos[valid_mask]
+            else:
+                pos3 = pos[valid_mask]
+    
+    # Ensure positions are within box bounds
+    pos1 = np.mod(pos1, box_size)
+    pos2 = np.mod(pos2, box_size)
+    if pos3 is not None:
+        pos3 = np.mod(pos3, box_size)
+    
+    # Subsample if too many particles (for DMB only)
+    if pos3 is not None and len(pos3) > 1000000:
+        idx = np.random.choice(len(pos3), 1000000, replace=False)
+        pos3 = pos3[idx]
+        print(f"Subsampled DMB particles from {len(pos3)} to 1,000,000")
+        
     print("Comparing power spectra between DMO and BCM simulations")
     if len(dmo_positions) != len(bcm_positions):
         print("WARNING: Particle counts don't match! Power spectrum comparison may be invalid.")
@@ -868,12 +930,19 @@ def compare_power_spectra(dmo_positions, bcm_positions, box_size, output_file=No
     k_dmo, Pk_dmo = calc_power_spectrum_new(dmo_positions, box_size)
     print("Calculating power spectrum for BCM")
     k_bcm, Pk_bcm = calc_power_spectrum_new(bcm_positions, box_size)
+    print("Calculating power spectrum for DMB")
+    k_dmb, Pk_dmb = calc_power_spectrum_new(dmb_positions, box_size)
     plt.figure(figsize=(10, 6))
     ratio = Pk_bcm / Pk_dmo
-    plt.loglog(k_dmo, ratio, label='Ratio BCM/DMO', linestyle='--')
+    ratio_new = Pk_dmb / Pk_dmo
+    plt.semilogx(k_dmo, ratio, label='Ratio BCM/DMO', linestyle='--')
+    #plt.semilogx(k_dmo, ratio_new, label='Ratio DMB/DMO new', linestyle=':')
+    plt.axhline(1, color='black', linestyle='--', linewidth=1, label='y=1')
     #plt.loglog(k_dmo, Pk_dmo, label='DMO Power Spectrum', color='blue')
     #plt.loglog(k_bcm, Pk_bcm, label='BCM Power Spectrum', color='red')
     plt.title('Power Spectrum Comparison: DMO vs BCM')
+    plt.ylim(0.8, 1.08)
+    plt.xlim(5e-2, 12)
     plt.xlabel('k [h/Mpc]')
     plt.ylabel('P(k) [(Mpc/h)³]')
     plt.legend()
@@ -881,7 +950,7 @@ def compare_power_spectra(dmo_positions, bcm_positions, box_size, output_file=No
     if output_file:
         plt.savefig(output_file)
     plt.show()
-    return k_dmo, Pk_dmo, k_bcm, Pk_bcm
+    return k_dmo, Pk_dmo, k_bcm, Pk_bcm, k_dmb, Pk_dmb
 
 def plot_power_spectrum(k, Pk, title=None, save_path=None):
     """

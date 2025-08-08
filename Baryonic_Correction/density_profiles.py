@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.integrate import quad
 from scipy.optimize import brentq
+from scipy import special
 from Baryonic_Correction import parameters as par
 
 # --------------------------------------------------------------------
@@ -36,6 +37,19 @@ def rho_background(v, halo_masses):
     Omega_m = 0.3071
     return rho_c * Omega_m 
 
+def truncated_nfw_integrand(x, tau):
+    return x / ((1 + x)**2 * (1 + (x / tau)**2)**2)
+
+def M_tot_truncated(rho0, rs, rtr):
+    tau = rtr / rs
+    integral, _ = quad(truncated_nfw_integrand, 0, tau, args=(tau,))
+    return 4 * np.pi * rho0 * rs**3 * integral
+
+def M_tot_simple(rho0, r_s, r_tr):
+    integrand = lambda r: 4 * np.pi * r**2 * rho_nfw(r, r_s, rho0, r_tr)
+    M, _ = quad(integrand, 0, r_tr)
+    return M
+
 def rho_nfw(r, r_s, rho0, r_tr, r_0=1e-10):
     """
     Calculate the truncated NFW density profile.
@@ -68,7 +82,7 @@ def rho_nfw(r, r_s, rho0, r_tr, r_0=1e-10):
     """
     r = np.maximum(r, r_0)  # Ensure r is at least r_0 to avoid division by zero
     x = r / r_s
-    tau = r_tr / r_s  # Corrected - tau is r_tr/r_s
+    tau = r_tr / r_s 
     return rho0 / ( x * (1 + x)**2 * (1 + (x/tau)**2)**2 )
 
 def mass_profile(r, density_func, **kwargs):
@@ -98,15 +112,19 @@ def mass_profile(r, density_func, **kwargs):
     For NFW profiles with r_tr >> r_s, this function automatically uses the
     analytical solution for better accuracy and performance.
     """
-    if density_func == rho_nfw and 'r_tr' in kwargs and kwargs['r_tr'] > 5*kwargs['r_s']:
+    """if density_func == rho_nfw and 'r_tr2' in kwargs and kwargs['r_tr'] > 5*kwargs['r_s']:
         r_s = kwargs['r_s']
         rho0 = kwargs['rho0']
         x = r / r_s
         return 4 * np.pi * rho0 * r_s**3 * (np.log(1 + x) - x/(1 + x))
     
+    if density_func == mass_nfw_analytical_inf and 'r_tr' in kwargs and kwargs['r_tr'] > 5*kwargs['r_s']:
+        r_s = kwargs['r_s']
+        rho0 = kwargs['rho0']
+        r_tr = kwargs['r_tr']
+        return mass_nfw_analytical_inf(r_tr, r_s, rho0)
+    """
     r_min = 1e-8  # Lower minimum radius to capture more central mass
-    
-    from scipy import special
     
     n_points = 48  # Higher number of points for better accuracy
     x, w = special.roots_legendre(n_points)
@@ -122,7 +140,7 @@ def mass_profile(r, density_func, **kwargs):
     
     return M
 
-def mass_nfw_analytical(r, r_s, rho0):
+def mass_nfw_analytical_inf(r_tr, r_s, rho0):
     """
     Calculate the enclosed mass for an NFW profile using the analytical formula.
     
@@ -145,8 +163,9 @@ def mass_nfw_analytical(r, r_s, rho0):
     Uses the formula: M(r) = 4πρ0r_s³(ln(1+x) - x/(1+x)) where x = r/r_s
     This is valid for a standard (non-truncated) NFW profile.
     """
-    x = r/r_s
-    return 4*np.pi*rho0*r_s**3*(np.log(1+x) - x/(1+x))
+    t = r_tr / r_s  # Truncation radius in units of scale radius
+    m_nfw_inf = 2 * t**4 * (t**2 - 3) * np.log(t) - t**2 * (3*t**2 - 1) * (t**2 - np.pi * t +1) / (2 * (t**2 + 1)**3)
+    return 4 * np.pi * r_s ** 3 * rho0 * m_nfw_inf
 
 def calculate_total_mass(r_vals, rho_bcm):
     """
@@ -634,3 +653,24 @@ def y_rdm_fixed_xi(r, r_s, rho0, r_tr, xi=0.85, norm=1.0,
         xi = 1
     ri = r / xi
     return norm * xi**(-3) * rho_nfw(ri, r_s, rho0, r_tr)
+
+##### Newer Paper Functions #####
+
+def rho_clm(r, f_sga, O_dm, O_m, *args, **kwargs):
+    return ((O_dm / O_m) + f_sga) * rho_nfw(r, *args, **kwargs)
+
+def rho_cga(r, R_h, M, f_cga):
+    expo = -(r / (2 * R_h))**2
+    return (1 / (4 * np.pi**1.5 * R_h * r**(-2))) * M  * f_cga *np.exp(expo)
+
+def rho_gas(r, M, r_vir, f_b, f_star, the_ej = 4.235, delta=6.40, gamma=2.25):
+
+    a = f_b - f_star
+    b = (1 + 10 * (r / r_vir))**(beta(M)) 
+    c = (1 + (r / (r_vir * the_ej))**(gamma))
+    e = (delta - beta(M))/gamma
+    return a/(b * c**e)
+
+def beta(M, M_c = 10 ** 13.322, mu = 0.93):
+    return 3*(M/M_c)**mu / (1 + (M/M_c)**mu)
+    

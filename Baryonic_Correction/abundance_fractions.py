@@ -144,3 +144,14 @@ def f_rdm(fbar_loc):
     It represents the dark matter component that has reached equilibrium.
     """
     return 1 - fbar_loc
+
+### Newer Paper Implementation ###
+
+def fi(M,M_s = 2.5e11, n = 0.22):
+    return 0.055 * (M/M_s)**n
+
+def new_fractions(M,M_s = 2.5e11, n = 0.22, n_d = 0.240):
+    f_star = fi(M,M_s,n)
+    f_cga = fi(M,M_s,(n+n_d))
+    f_sga = f_star - f_cga
+    return [f_star, f_cga, f_sga]

@@ -4,6 +4,7 @@ import h5py
 import glob
 import hdf5plugin
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 from tqdm import tqdm
 from Baryonic_Correction import density_profiles as dp
 from Baryonic_Correction import utils as ut
@@ -17,7 +18,7 @@ class CAMELSReader:
     Stores important parameters from the simulations.
     """
     
-    def __init__(self, path_group=None, path_snapshot=None, index = None, load_part = True, verbose = False):
+    def __init__(self, path_group=None, path_snapshot=None, swift_path = None,index = None, load_part = True, verbose = False):
         """
         Initialize the CAMELSReader with optional paths to group and snapshot data.
         
@@ -49,7 +50,55 @@ class CAMELSReader:
             self._load_simdata()
             if load_part:
                 self._load_particles()
+        if swift_path is not None:
+            self.swift_path = swift_path
+            self._swift_load_halodata()
+    
+    def _swift_load_halodata(self):
         
+        path = self.swift_path
+        # Check if path exists
+        if path is None:
+            print("No path provided.")
+            return
+        if not os.path.exists(path):
+            print(f"Path {path} does not exist.")
+            return False
+        
+        try:
+            with h5py.File(path, 'r') as f:
+                        print(f.keys())  # <KeysViewHDF5 ['Cells', 'Code', 'Cosmology', 'DMParticles', 'GravityScheme', 'Header', 'ICs_parameters', 'InternalCodeUnits', 'Parameters', 'PartType1', 'PhysicalConstants', 'Policy', 'RecordingTriggers', 'SubgridScheme', 'Units', 'UnusedParameters']>
+                        header = f["Header"].attrs
+                        cosmology = f["Cosmology"].attrs
+                        cells = f["Cells"].attrs
+                        for attr in f.keys():
+                            print(f"---  {attr}: {f[attr]}  ---")
+                            for key, value in f[attr].items():
+                                print(f"{key}: {value}")
+                        print("------------------\n")
+                        for key,value in f['Cells'].items():
+                            for val in f['Cells'][key]:
+                                print(f"{key} : {val[0]}")
+                        print("------------------\n")
+                        print(f"Cosmology: {cosmology}")
+                        print(f"z={header['Redshift'][0]:.2f} a={header['Scale-factor'][0]:.2f}")  # z=0.00 a=1.00
+                        boxsize = header['BoxSize'][0]  # keep in mind that all length-units are in Mpc, not Mpc/h
+                        print(f"{boxsize=}")  # boxsize=np.float64(442.856721302682)
+
+                        parttype1 = f["SubgridScheme"]
+                        for key,value in parttype1.items():
+                            print(f"{key}: {value}")
+                            print(f"{key} Unique values: {np.unique(value).shape}")  # Check unique values for Coordinates, Velocities, ParticleIDs
+                        # load data into memory as a numpy array
+                        coordinates = np.asarray(f["PartType1/Potentials"])
+                        print(f"Coordinates shape: {coordinates.shape}")  # (2097152, 3)
+                        print(np.count_nonzero(np.unique(coordinates)))  # (2097152, 3)
+
+        except Exception as e:
+            print(f"Error loading halo data: {e}")
+            return 
+        
+    
     def _load_halodata(self):
         """
         Load halo data from the CAMELS simulation.
@@ -544,6 +593,10 @@ class CAMELSReader:
                 self.f_bgas = f[1]
                 self.f_cgal = f[2]
                 self.f_egas = f[3]
+            fractions_new = af.new_fractions(self.M200)
+            self.f_star = fractions_new[0]
+            self.f_cga = fractions_new[1]
+            self.f_sga = fractions_new[2]
         else:
             # Custom abundance fractions
             if self.verbose:
@@ -552,6 +605,10 @@ class CAMELSReader:
             self.f_bgas = af.f_bgas(self.M200, self.fbar)
             self.f_cgal = af.f_cgal(self.M200)
             self.f_egas = af.f_egas(self.f_bgas,self.f_cgal,self.fbar)
+            fractions_new = af.new_fractions(self.M200)
+            self.f_star = fractions_new[0]
+            self.f_cga = fractions_new[1]
+            self.f_sga = fractions_new[2]
         
         # Validate fractions sum to 1.0
         total = self.f_rdm + self.f_bgas + self.f_cgal + self.f_egas
@@ -626,7 +683,7 @@ class CAMELSReader:
         # Concatenate and ensure uniqueness and sorting
         self.r_vals = np.unique(np.concatenate([r_log, r_lin]))
 
-    def _calc_NFW_target_mass(self):
+    def _calc_NFW_target_mass(self, inf = True):
         """
         Calculate the target mass for the NFW profile.
         
@@ -642,14 +699,32 @@ class CAMELSReader:
         -----
         Also sets the class attributes rho0 and fixed_M_tot.
         """
+
         # Integrate NFW profile over a large range to approximate total mass
         self.rho0 = ut.bracket_rho0(self.M200, self.r_s, self.r_tr, self.r200)
         rho_nfw = np.array([dp.rho_nfw(r, self.r_s, self.rho0, self.r_tr) for r in self.r_vals])
         M_nfw = ut.cumul_mass(self.r_vals, rho_nfw)
         M_tot = M_nfw[-1]
-        #M_tot2 = dp.mass_nfw_analytical(self.r_vals[-1], self.r_s, self.rho0)
+        rho_nfw2 = np.array([dp.rho_nfw(r, self.r_s, self.rho0, self.r_tr) for r in self.r_vals])
+        M_nfw2 = ut.cumul_mass(self.r_vals, rho_nfw2)
+        M_tot2 = dp.M_tot_truncated(self.rho0,self.r_s, self.r_tr)
         #print(f"Fixed M_tot: {M_tot:.3e}, M_tot2: {M_tot2:.3e}")
         self.fixed_M_tot = M_tot
+        inf = True
+        if not inf:
+            # Integrate NFW profile over a large range to approximate total mass
+            #rho_nfw = np.array(dp.rho_nfw(self.r200, self.r_s, self.rho0, self.r_tr))
+            M_nfw = ut.cumul_mass_single(self.r200, rho_nfw,self.r_vals)
+            M_tot = M_nfw
+            #M_tot2 = dp.mass_nfw_analytical(self.r_vals[-1], self.r_s, self.rho0)
+            #print(f"Fixed M_tot: {M_tot:.3e}, M_tot2: {M_tot2:.3e}")
+            #rho0_2 = ut.bracket_rho0(self.fixed_M_tot, self.r_s, self.r_tr, self.r200)
+        #rho0_2 = ut.bracket_rho0_2(self.M200, self.r_s, self.r_tr, self.r200)
+        #print(f"Rho0 for M_tot_new: {rho0_2:.3e}")
+        #M_tot_new = dp.mass_nfw_analytical_inf(self.r_tr, self.r_s, self.rho0)
+        #print(f"Rho0: {self.rho0:.3e}")
+        #print(f"Fixed M_tot_new: {M_tot2:.3e}")
+        #print(f"Fixed M_tot: {M_tot:.3e}")
         return M_nfw
 
     def _calculate_normalizations(self):
@@ -792,12 +867,22 @@ class CAMELSReader:
             [self.f_bgas, self.f_egas, self.f_cgal,self.f_rdm], 
             [y_bgas_vals, y_egas_vals, y_cgal_vals, y_rdm_vals_fixed_xi]
         )
+        y_bgas_vals2, y_cgal_vals2,y_egas_vals2,y_rdm_vals_fixed_xi2 = self.correction_factors_baryons(
+            [self.f_bgas, self.f_cgal,self.f_egas,self.f_rdm], 
+            [y_bgas_vals, y_cgal_vals, y_egas_vals, y_rdm_vals_fixed_xi],inf=False
+        )
         
+        #print(f"Comparison between bgas normalization at r_200 and infinity:")
+        #print(f"  r_200: {ut.cumul_mass_single(self.r_vals[-1],y_bgas_vals2,self.r_vals):.3e}, inf: {ut.cumul_mass_single(self.r_vals[-1],y_bgas_vals,self.r_vals):.3e}")
+        #y_cgal_vals = y_cgal_vals2
+        #y_egas_vals = y_egas_vals2
+        #y_bgas_vals = y_bgas_vals2
         # baryon components for xi
         # Note: y_bgas, y_egas, and y_cgal are already normalized
-        baryons = [(self.r_vals, y_bgas_vals), 
-           (self.r_vals, y_egas_vals), 
-           (self.r_vals, y_cgal_vals)]
+        baryons = [(self.r_vals, y_cgal_vals), 
+            (self.r_vals, y_bgas_vals),
+            (self.r_vals, y_egas_vals)
+            ]
         
         # Calculate unnormalized profile
         rho_dm_contracted = dp.y_rdm_ac(self.r_vals, self.r_s, self.rho0, self.r_tr, 
@@ -805,9 +890,10 @@ class CAMELSReader:
                                     baryon_components=baryons, verbose=self.verbose)
 
         # Calculate total mass and correction factor
-        M_contracted = ut.cumul_mass(self.r_vals, rho_dm_contracted)[-1]
+        M_contracted_inf = ut.cumul_mass(self.r_vals, rho_dm_contracted)[-1]
+        M_contracted_m200 = ut.cumul_mass_single(self.r200, rho_dm_contracted,self.r_vals)
         target_mass = self.f_rdm * self.fixed_M_tot
-        correction_factor = target_mass / M_contracted
+        correction_factor = target_mass / M_contracted_inf
         
         if self.verbose:
             print(f"RDM mass correction factor: {correction_factor:.4f}")
@@ -818,6 +904,35 @@ class CAMELSReader:
         #y_rdm_vals = y_rdm_vals_fixed_xi
 
         rho_bcm = y_rdm_vals + y_bgas_vals + y_egas_vals + y_cgal_vals + rho_bkg_vals
+        
+        # new paper profiles
+        y_rho_clm = np.array([dp.rho_clm(
+            r = r, 
+            f_sga=self.f_sga,  # Stellar growth adiabatic factor
+            O_dm=self.Om - self.Ob,  # Dark matter density parameter
+            O_m=self.Om,   # Total matter density parameter
+            r_s=self.r_s, 
+            rho0=self.rho0,
+            r_tr=self.r_tr
+            ) for r in self.r_vals])
+        
+        y_rho_cga = np.array([dp.rho_cga(
+            r=r,
+            R_h=self.R_h,
+            M=self.M200,
+            f_cga=self.f_cga
+            ) for r in self.r_vals])
+        
+        y_rho_gas = np.array([dp.rho_gas(
+            r=r,
+            M=self.M200,
+            r_vir=self.r200,
+            f_b=self.fbar,
+            f_star=self.f_star 
+            ) for r in self.r_vals])
+            
+        rho_dmb = y_rho_cga + y_rho_clm + y_rho_gas
+        
         self.profiles = {
             'rho_dmo': rho_dmo_vals,
             'rho_nfw': rho_nfw_vals,
@@ -826,11 +941,17 @@ class CAMELSReader:
             'y_egas': y_egas_vals,
             'y_cgal': y_cgal_vals,
             'y_rdm': y_rdm_vals,
-            'rho_bcm': rho_bcm
+            'rho_bcm': rho_bcm,
+            'y_rho_clm': y_rho_clm,
+            'y_rho_cga': y_rho_cga,
+            'y_rho_gas': y_rho_gas,
+            'rho_dmb': rho_dmb
         }
-        return rho_dmo_vals, rho_nfw_vals, rho_bkg_vals, y_bgas_vals, y_egas_vals, y_cgal_vals, y_rdm_vals, rho_bcm
+        
+        
+        return rho_dmo_vals, rho_nfw_vals, rho_bkg_vals, y_bgas_vals, y_egas_vals, y_cgal_vals, y_rdm_vals, rho_bcm, y_rho_clm, y_rho_cga, y_rho_gas, rho_dmb
 
-    def correction_factors_baryons(self, fractions, profiles):
+    def correction_factors_baryons(self, fractions, profiles,inf=True):
         """
         Apply mass correction factors to baryonic components.
         
@@ -850,13 +971,19 @@ class CAMELSReader:
             Corrected density profiles.
         """
         cor_profiles = []
+        target = self._calc_NFW_target_mass(inf=False)
         for i in range(len(fractions)):
-            mass = ut.cumul_mass(self.r_vals, profiles[i])[-1]
-            correction = (fractions[i] * self.fixed_M_tot) / mass
+            if inf:
+                mass = ut.cumul_mass(self.r_vals, profiles[i])[-1]
+                correction = (fractions[i] * self.fixed_M_tot) / mass
+            else:
+                mass = ut.cumul_mass_single(self.r200, profiles[i],self.r_vals)
+                correction = (fractions[i] * target) / mass
+
             cor_profiles.append(correction*profiles[i])
         return cor_profiles
 
-    def _compute_mass_profiles(self, rho_dmo_vals, rho_bkg_vals, y_rdm_vals, y_bgas_vals, y_egas_vals, y_cgal_vals, rho_bcm, M_nfw):
+    def _compute_mass_profiles(self, rho_dmo_vals, rho_bkg_vals, y_rdm_vals, y_bgas_vals, y_egas_vals, y_cgal_vals, rho_bcm, y_rho_clm, y_rho_cga, y_rho_gas, rho_dmb, M_nfw):
         """
         Compute cumulative mass profiles for all components.
         
@@ -900,6 +1027,10 @@ class CAMELSReader:
         M_egas = ut.cumul_mass(self.r_vals, y_egas_vals)
         M_cgal = ut.cumul_mass(self.r_vals, y_cgal_vals)
         M_bcm = ut.cumul_mass(self.r_vals, rho_bcm)
+        M_clm = ut.cumul_mass(self.r_vals, y_rho_clm)
+        M_cga = ut.cumul_mass(self.r_vals, y_rho_cga)
+        M_gas = ut.cumul_mass(self.r_vals, y_rho_gas)
+        M_dmb = ut.cumul_mass(self.r_vals, rho_dmb)
         self.masses = {
             'M_dmo': M_dmo,
             'M_bkg': M_bkg,
@@ -908,13 +1039,17 @@ class CAMELSReader:
             'M_egas': M_egas,
             'M_cgal': M_cgal,
             'M_bcm': M_bcm,
-            'M_nfw': M_nfw
+            'M_nfw': M_nfw,
+            'M_clm': M_clm,
+            'M_cga': M_cga,
+            'M_gas': M_gas,
+            'M_dmb': M_dmb
         }
         
 #        self._check_masses()
         if self.verbose:
             self._print_masses_at_infinity()
-        return M_dmo, M_bkg, M_rdm, M_bgas, M_egas, M_cgal, M_bcm
+        return M_dmo, M_bkg, M_rdm, M_bgas, M_egas, M_cgal, M_bcm, M_clm, M_cga, M_gas, M_dmb
 
     def _check_masses(self):
         """
@@ -1149,10 +1284,10 @@ class CAMELSReader:
             print(f"  cgal: {norm_cgal:.3e}")
         
         # Calculate density profiles
-        rho_dmo_vals, rho_nfw_vals, rho_bkg_vals, y_bgas_vals, y_egas_vals, y_cgal_vals, y_rdm_vals, rho_bcm = self._compute_density_profiles(norm_bgas, norm_egas, norm_cgal, norm_rdm_fixed_xi, M_nfw)
+        rho_dmo_vals, rho_nfw_vals, rho_bkg_vals, y_bgas_vals, y_egas_vals, y_cgal_vals, y_rdm_vals, rho_bcm ,y_rho_clm, y_rho_cga, y_rho_gas, rho_dmb= self._compute_density_profiles(norm_bgas, norm_egas, norm_cgal, norm_rdm_fixed_xi, M_nfw)
         
         # Calculate mass profiles
-        M_dmo, M_bkg, M_rdm, M_bgas, M_egas, M_cgal, M_bcm = self._compute_mass_profiles(rho_dmo_vals, rho_bkg_vals, y_rdm_vals, y_bgas_vals, y_egas_vals, y_cgal_vals, rho_bcm, M_nfw)
+        M_dmo, M_bkg, M_rdm, M_bgas, M_egas, M_cgal, M_bcm, M_clm, M_cga, M_gas, M_dmb = self._compute_mass_profiles(rho_dmo_vals, rho_bkg_vals, y_rdm_vals, y_bgas_vals, y_egas_vals, y_cgal_vals, rho_bcm, y_rho_clm, y_rho_cga, y_rho_gas, rho_dmb, M_nfw)
         
         #M_b = M_bgas + M_egas + M_cgal
         #M_i = M_nfw
@@ -1162,6 +1297,9 @@ class CAMELSReader:
         # Calculate displacement
         f_inv_bcm = self._invert_mass_profile(M_bcm)
         disp = self._compute_displacement(M_dmo, f_inv_bcm)
+        
+        f_inv_bcm_new = self._invert_mass_profile(M_dmb)
+        disp_new = self._compute_displacement(M_dmo, f_inv_bcm_new)
         
         # Store results in the components dictionary
         self.components = {
@@ -1183,6 +1321,15 @@ class CAMELSReader:
             'M_bcm': M_bcm,
             'M_bkg': M_bkg,
             'M_nfw': M_nfw,
+            'M_clm': M_clm,
+            'M_cga': M_cga,
+            'M_gas': M_gas,
+            'M_dmb': M_dmb,
+            'y_rho_clm': y_rho_clm,
+            'y_rho_cga': y_rho_cga,
+            'y_rho_gas': y_rho_gas,
+            'y_rho_dmb': rho_dmb,
+            'disp_new': disp_new,
             'disp': disp
         }
         
@@ -1482,7 +1629,10 @@ class CAMELSReader:
                         'fbar': self.fbar,
                         'r_ej': self.r_ej,
                         'R_h': self.R_h,
-                        'fixed_M_tot': self.fixed_M_tot
+                        'fixed_M_tot': self.fixed_M_tot,
+                        'f_star': self.f_star,
+                        'f_cga': self.f_cga,
+                        'f_clm': self.f_clm,
                     }
                     bcm_parameters_data.append(bcm_params)
     
@@ -1510,7 +1660,11 @@ class CAMELSReader:
                             'rho_rdm': self.components['rdm'][j],
                             'rho_bgas': self.components['bgas'][j],
                             'rho_egas': self.components['egas'][j],
-                            'rho_cgal': self.components['cgal'][j]
+                            'rho_cgal': self.components['cgal'][j],
+                            'rho_clm': self.components['y_rho_clm'][j],
+                            'rho_cga': self.components['y_rho_cga'][j],
+                            'rho_gas': self.components['y_rho_gas'][j],
+                            'rho_dmb': self.components['y_rho_dmb'][j]
                         }
                         density_profiles_data.append(density_row)
     
@@ -1526,7 +1680,11 @@ class CAMELSReader:
                             'M_egas': self.components['M_egas'][j],
                             'M_cgal': self.components['M_cgal'][j],
                             'M_bkg': self.components['M_bkg'][j],
-                            'M_nfw': self.components['M_nfw'][j]
+                            'M_nfw': self.components['M_nfw'][j],
+                            'M_clm': self.components['M_clm'][j],
+                            'M_cga': self.components['M_cga'][j],
+                            'M_gas': self.components['M_gas'][j],
+                            'M_dmb': self.components['M_dmb'][j]
                         }
                         mass_profiles_data.append(mass_row)
     
@@ -1589,6 +1747,12 @@ class CAMELSReader:
                 'std_f_cgal': df_bcm_params['f_cgal'].std(),
                 'mean_f_egas': df_bcm_params['f_egas'].mean(),
                 'std_f_egas': df_bcm_params['f_egas'].std(),
+                'mean_f_cga': df_bcm_params['f_cga'].mean(),
+                'std_f_cga': df_bcm_params['f_cga'].std(),
+                'mean_f_clm': df_bcm_params['f_clm'].mean(),
+                'std_f_clm': df_bcm_params['f_clm'].std(),
+                'mean_f_star': df_bcm_params['f_star'].mean(),
+                'std_f_star': df_bcm_params['f_star'].std(),
                 'mean_concentration': df_bcm_params['c'].mean(),
                 'std_concentration': df_bcm_params['c'].std(),
                 'processing_date': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S'),
@@ -1621,6 +1785,9 @@ class CAMELSReader:
                 f.write(f"  f_bgas: {analysis_summary['mean_f_bgas']:.4f} ± {analysis_summary['std_f_bgas']:.4f}\n")
                 f.write(f"  f_cgal: {analysis_summary['mean_f_cgal']:.4f} ± {analysis_summary['std_f_cgal']:.4f}\n")
                 f.write(f"  f_egas: {analysis_summary['mean_f_egas']:.4f} ± {analysis_summary['std_f_egas']:.4f}\n")
+                f.write(f"  f_cga:  {analysis_summary['mean_f_cga']:.4f} ± {analysis_summary['std_f_cga']:.4f}\n")
+                f.write(f"  f_clm:  {analysis_summary['mean_f_clm']:.4f} ± {analysis_summary['std_f_clm']:.4f}\n")
+                f.write(f"  f_star: {analysis_summary['mean_f_star']:.4f} ± {analysis_summary['std_f_star']:.4f}\n")
                 f.write(f"  c:      {analysis_summary['mean_concentration']:.4f} ± {analysis_summary['std_concentration']:.4f}\n\n")
                 f.write(f"Files Generated:\n")
                 f.write(f"  - halo_summary.csv: Basic halo properties\n")
@@ -1646,19 +1813,6 @@ class CAMELSReader:
             print("No valid halo data to save!")
             return {}
     
-        print(f"Displacement calculation completed for {len(halo_summary_data)} halos")
-        print(f"All results saved to directory: {output_dir}")
-    
-        # ... your existing code ...
-        
-        print("="*50)
-        print("TESTING ABUNDANCE FRACTIONS")
-        print("="*50)
-        test_g_func_and_fractions()
-        print("="*50)
-        
-        # ... rest of your code ...
-        
     def calc_displ_and_compare_powerspectrum_from_csv(self, csv_dir="halo_data/displacement_all_halos", output_file=None):
         """
         Calculate power spectra using pre-computed displacement data from CSV files.
@@ -1682,7 +1836,7 @@ class CAMELSReader:
         import os
         
         # Check if CSV files exist
-        disp_file = os.path.join(csv_dir, "displacement_profiles.csv")
+        disp_file = os.path.join(csv_dir, "batch_displacement.csv")
         if not os.path.exists(disp_file):
             print(f"Error: Displacement file not found: {disp_file}")
             print("Run calculate_displacement_all_halos() first!")
@@ -1696,6 +1850,7 @@ class CAMELSReader:
         # Get original particle positions for all halos
         all_dmo_positions = []
         all_bcm_positions = []
+        all_dmb_positions = []
         
         # Process each halo
         for halo_id in tqdm(df_disp['halo_id'].unique(), desc="Applying displacements from CSV"):
@@ -1714,9 +1869,11 @@ class CAMELSReader:
                 halo_disp_data = df_disp[df_disp['halo_id'] == halo_id]
                 r_vals = halo_disp_data['r_val'].values
                 disp_vals = halo_disp_data['displacement'].values
+                disp_vals_new = halo_disp_data['displacement_new'].values
                 
                 # Interpolate displacement for particle radii
                 disp = np.interp(r, r_vals, disp_vals)
+                disp_new = np.interp(r, r_vals, disp_vals_new)
                 
                 # Apply displacement
                 with np.errstate(invalid='ignore', divide='ignore'):
@@ -1727,9 +1884,13 @@ class CAMELSReader:
                 new_rel_pos = rel_pos + direction * disp[:, np.newaxis]
                 new_pos = new_rel_pos + center
                 
+                new_rel_pos_new = rel_pos + direction * disp_new[:, np.newaxis]
+                new_pos_new = new_rel_pos_new + center
+                
                 # Store positions
                 all_dmo_positions.append(particles['pos'])
                 all_bcm_positions.append(new_pos)
+                all_dmb_positions.append(new_pos_new)
                 
             except Exception as e:
                 print(f"Warning: Error processing halo {halo_id}: {e}")
@@ -1742,16 +1903,586 @@ class CAMELSReader:
         # Combine all positions
         dmo_positions = np.vstack(all_dmo_positions)
         bcm_positions = np.vstack(all_bcm_positions)
+        dmb_positions = np.vstack(all_dmb_positions)
         
-        print(f"Total particles: DMO={len(dmo_positions)}, BCM={len(bcm_positions)}")
+        print(f"Total particles: DMO={len(dmo_positions)}, BCM={len(bcm_positions)}, DMB={len(dmb_positions)}")
         
         # Calculate power spectra
-        k_dmo, Pk_dmo, k_bcm, Pk_bcm = ut.compare_power_spectra(
-            dmo_positions, bcm_positions, self.boxsize, output_file
+        k_dmo, Pk_dmo, k_bcm, Pk_bcm, k_dmb, Pk_dmb = ut.compare_power_spectra(
+            dmo_positions, bcm_positions, dmb_positions, self.boxsize, output_file
         )
         
-        return k_dmo, Pk_dmo, k_bcm, Pk_bcm
+        return k_dmo, Pk_dmo, k_bcm, Pk_bcm, k_dmb, Pk_dmb, dmo_positions, bcm_positions, dmb_positions
     
+    def calculate_gravitational_potential_cic(self, positions, grid_size=128, smoothing_length=None):
+        """
+        Calculate gravitational potential from particle positions using CIC assignment.
+        
+        This method assigns particles to a grid using Cloud-In-Cell interpolation,
+        computes the density field, and then calculates the gravitational potential
+        using Poisson's equation in Fourier space.
+        
+        Parameters
+        ----------
+        positions : numpy.ndarray
+            Particle positions in shape (N, 3) in Mpc/h
+        grid_size : int, default 128
+            Size of the cubic grid for CIC assignment
+        smoothing_length : float, optional
+            Smoothing scale in Mpc/h. If None, uses grid spacing
+            
+        Returns
+        -------
+        dict
+            Dictionary containing:
+            - 'potential': 3D potential grid
+            - 'density': 3D density grid  
+            - 'grid_coords': Grid coordinate arrays
+            - 'grid_spacing': Grid spacing in Mpc/h
+        """
+        import numpy as np
+        from scipy.fft import fftn, ifftn
+        
+        # Validate input positions
+        if len(positions) == 0:
+            print("Warning: No particles provided!")
+            return None
+        
+        print(f"Processing {len(positions)} particles...")
+        
+        # Ensure positions are within box bounds and remove invalid values
+        valid_mask = ~np.isnan(positions).any(axis=1) & ~np.isinf(positions).any(axis=1)
+        positions = positions[valid_mask]
+        positions = np.mod(positions, self.boxsize)
+        
+        print(f"Valid particles after cleaning: {len(positions)}")
+        
+        # Initialize density grid
+        density_grid = np.zeros((grid_size, grid_size, grid_size))
+        grid_spacing = self.boxsize / grid_size
+        
+        # CIC assignment
+        print("Assigning particles to grid using CIC...")
+        for pos in tqdm(positions, desc="CIC assignment"):
+            # Convert to grid coordinates
+            grid_pos = pos / grid_spacing
+            
+            # Get integer and fractional parts
+            i0, j0, k0 = np.floor(grid_pos).astype(int) % grid_size
+            i1, j1, k1 = (np.floor(grid_pos).astype(int) + 1) % grid_size
+            
+            # Fractional distances
+            dx, dy, dz = grid_pos - np.floor(grid_pos)
+            
+            # CIC weights
+            w000 = (1 - dx) * (1 - dy) * (1 - dz)
+            w001 = (1 - dx) * (1 - dy) * dz
+            w010 = (1 - dx) * dy * (1 - dz)
+            w011 = (1 - dx) * dy * dz
+            w100 = dx * (1 - dy) * (1 - dz)
+            w101 = dx * (1 - dy) * dz
+            w110 = dx * dy * (1 - dz)
+            w111 = dx * dy * dz
+            
+            # Assign to grid
+            density_grid[i0, j0, k0] += w000
+            density_grid[i0, j0, k1] += w001
+            density_grid[i0, j1, k0] += w010
+            density_grid[i0, j1, k1] += w011
+            density_grid[i1, j0, k0] += w100
+            density_grid[i1, j0, k1] += w101
+            density_grid[i1, j1, k0] += w110
+            density_grid[i1, j1, k1] += w111
+        
+        # Convert to density (particles per cell to density)
+        rho_crit_0 = 2.775e11  # Critical density at z=0 in Msun/h / (Mpc/h)^3
+        E_z_squared = self.Om * (1 + self.z)**3 + (1 - self.Om)  # Simplified for flat ΛCDM
+        rho_crit_z = rho_crit_0 * E_z_squared
+        particle_mass = (self.Om * rho_crit_z * self.boxsize**3) / len(positions)
+        density_grid = density_grid * particle_mass / grid_spacing**3
+        
+        # Convert to overdensity
+        mean_density = np.mean(density_grid)
+        delta_grid = density_grid / mean_density - 1.0
+        
+        print("Calculating potential using FFT...")
+        
+        # Calculate potential using Poisson equation in Fourier space
+        # ∇²φ = 4πGρδ  =>  φ = -4πGρδ/k²
+        
+        # FFT to k-space
+        delta_k = np.fft.fftn(delta_grid)
+        
+        # Create k-space grid
+        kx = np.fft.fftfreq(grid_size, d=grid_spacing) * 2 * np.pi
+        ky = np.fft.fftfreq(grid_size, d=grid_spacing) * 2 * np.pi
+        kz = np.fft.fftfreq(grid_size, d=grid_spacing) * 2 * np.pi
+        
+        KX, KY, KZ = np.meshgrid(kx, ky, kz, indexing='ij')
+        K2 = KX**2 + KY**2 + KZ**2
+        
+        # Avoid division by zero at k=0
+        K2[0, 0, 0] = (2 * np.pi / self.boxsize)**2  # Fundamental mode (was 1.0)
+        
+        # FFT of density field
+        delta_k = fftn(delta_grid)
+        
+        # Calculate potential in k-space
+        # Using G = 4.301e-9 Mpc/M_sun (km/s)^2 in appropriate units
+        G = 4.301e-3  # Mpc³ M_sun⁻¹ (km/s)² - CORRECT for potential
+        rho_crit = rho_crit_0 * 1.989e30 / (3.086e24)**3
+        #potential_k = -4 * np.pi * G * mean_density * delta_k / K2
+        potential_k = -4 * np.pi * G * rho_crit * delta_k / K2
+        
+        # Set DC mode to zero (arbitrary potential zero point)
+        potential_k[0, 0, 0] = 0.0
+        
+        # Apply smoothing if requested
+        if smoothing_length is not None:
+            smoothing_k = np.exp(-0.5 * K2 * smoothing_length**2)
+            potential_k *= smoothing_k
+        
+        # Transform back to real space
+        potential_grid = np.real(ifftn(potential_k))
+        
+        # Ensure zero mean (removes any numerical drift)
+        potential_grid -= np.mean(potential_grid)
+        
+        # Create coordinate grids
+        x = np.linspace(0, self.boxsize, grid_size, endpoint=False)
+        y = np.linspace(0, self.boxsize, grid_size, endpoint=False)
+        z = np.linspace(0, self.boxsize, grid_size, endpoint=False)
+        
+        print(f"Potential calculation complete. Grid size: {grid_size}³")
+        print(f"Potential range: {potential_grid.min():.3e} to {potential_grid.max():.3e}")
+        
+        return {
+            'potential': potential_grid,
+            'density': density_grid,
+            'overdensity': delta_grid,
+            'grid_coords': (x, y, z),
+            'grid_spacing': grid_spacing,
+            'particle_mass': particle_mass,
+            'mean_density': mean_density
+        }
+    
+    def compare_potentials_dmo_bcm_dmb(self, output_file=None, grid_size=128):
+        """
+        Compare gravitational potentials between DMO, BCM, and DMB using CIC.
+        
+        Parameters
+        ----------
+        output_file : str, optional
+            If provided, saves plots to this file
+        grid_size : int, default 128
+            Grid resolution for CIC assignment
+            
+        Returns
+        -------
+        dict
+            Dictionary containing potential results for DMO, BCM, and DMB
+        """
+        import pandas as pd
+        import os
+        
+        # Load displacement data
+        csv_dir = "/Users/Maxi/Desktop/Uni/Master/Masterarbeit/Baryonic_Correction/halo_data/displacement_all_halos/"
+        disp_file = os.path.join(csv_dir, "batch_displacement.csv")
+        
+        if not os.path.exists(disp_file):
+            print(f"Error: Displacement file not found: {disp_file}")
+            return None
+        
+        df_disp = pd.read_csv(disp_file)
+        print("Loading displacement data from CSV...")
+        
+        # Get particle positions for all halos
+        all_dmo_positions = []
+        all_bcm_positions = []
+        all_dmb_positions = []
+        
+        for halo_id in tqdm(df_disp['halo_id'].unique(), desc="Loading particle positions"):
+            try:
+                particles = self.get_halo_particles(halo_id)
+                if particles is None:
+                    continue
+                    
+                center = self.get_halo_center(halo_id)
+                rel_pos = particles['pos'] - center
+                r = np.linalg.norm(rel_pos, axis=1)
+                
+                # Get displacements
+                halo_disp_data = df_disp[df_disp['halo_id'] == halo_id]
+                r_vals = halo_disp_data['r_val'].values
+                disp_vals = halo_disp_data['displacement'].values
+                disp_vals_new = halo_disp_data['displacement_new'].values
+                
+                disp = np.interp(r, r_vals, disp_vals)
+                disp_new = np.interp(r, r_vals, disp_vals_new)
+                
+                # Apply displacements
+                with np.errstate(invalid='ignore', divide='ignore'):
+                    direction = np.zeros_like(rel_pos)
+                    mask = r > 0
+                    direction[mask] = rel_pos[mask] / r[mask, np.newaxis]
+                
+                # Calculate displaced positions
+                bcm_pos = rel_pos + direction * disp[:, np.newaxis] + center
+                dmb_pos = rel_pos + direction * disp_new[:, np.newaxis] + center
+                
+                all_dmo_positions.append(particles['pos'])
+                all_bcm_positions.append(bcm_pos)
+                all_dmb_positions.append(dmb_pos)
+                
+            except Exception as e:
+                print(f"Warning: Error processing halo {halo_id}: {e}")
+                continue
+        
+        # Combine positions
+        dmo_positions = np.vstack(all_dmo_positions)
+        bcm_positions = np.vstack(all_bcm_positions)
+        dmb_positions = np.vstack(all_dmb_positions)
+        
+        print(f"Total particles: DMO={len(dmo_positions)}, BCM={len(bcm_positions)}, DMB={len(dmb_positions)}")
+        
+        # Calculate potentials
+        print("\nCalculating DMO potential...")
+        dmo_result = self.calculate_gravitational_potential_cic(dmo_positions, grid_size)
+    
+        if True: 
+            # Plot comparison
+            self._plot_potential_comparison(dmo_result, dmo_result, dmo_result, output_file)
+            
+            return {
+                'dmo': dmo_result,
+                'bcm': dmo_result, 
+                'dmb': dmo_result
+            }
+        
+        print("Calculating BCM potential...")
+        bcm_result = self.calculate_gravitational_potential_cic(bcm_positions, grid_size)
+        
+        print("Calculating DMB potential...")
+        dmb_result = self.calculate_gravitational_potential_cic(dmb_positions, grid_size)
+        
+        # Plot comparison
+        self._plot_potential_comparison(dmo_result, bcm_result, dmb_result, output_file)
+        
+        return {
+            'dmo': dmo_result,
+            'bcm': bcm_result, 
+            'dmb': dmb_result
+        }
+    
+    def _plot_potential_comparison_yt(self, dmo_result, bcm_result, dmb_result, output_file=None):
+        """Plot comparison using YT for better cosmological visualization."""
+        try:
+            import yt
+            import matplotlib.pyplot as plt
+            
+            # Create YT datasets from density grids
+            def create_yt_dataset(density_grid, boxsize, name):
+                data = {
+                    ('gas', 'density'): (density_grid, 'g/cm**3'),
+                }
+                
+                bbox = np.array([[-boxsize/2, boxsize/2],
+                            [-boxsize/2, boxsize/2], 
+                            [-boxsize/2, boxsize/2]])
+                
+                ds = yt.load_uniform_grid(data, density_grid.shape, 
+                                        length_unit="Mpc", 
+                                        bbox=bbox, 
+                                        dataset_name=name)
+                return ds
+            
+            # Convert density to proper units
+            rho_crit = 2.775e11 * 1.989e30 / (3.086e24)**3
+            
+            dmo_density = dmo_result['density'] * rho_crit
+            bcm_density = bcm_result['density'] * rho_crit  
+            dmb_density = dmb_result['density'] * rho_crit
+            
+            # Apply power-law enhancement to improve low-density visibility
+            # This compresses high values and stretches low values
+            power = 0.4  # Values < 1 enhance low density regions
+            
+            def enhance_low_density(density_data):
+                """Apply power-law transformation to enhance low-density structures."""
+                # Normalize to [0, 1] range
+                normalized = (density_data - density_data.min()) / (density_data.max() - density_data.min())
+                # Apply power transformation
+                enhanced = np.power(normalized, power)
+                # Scale back to physical units (but with enhanced contrast)
+                return enhanced * (density_data.max() - density_data.min()) + density_data.min()
+            
+            dmo_density_enhanced = enhance_low_density(dmo_density)
+            bcm_density_enhanced = enhance_low_density(bcm_density)
+            dmb_density_enhanced = enhance_low_density(dmb_density)
+            
+            # Create YT datasets
+            ds_dmo = create_yt_dataset(dmo_density_enhanced, self.boxsize, "DMO")
+            ds_bcm = create_yt_dataset(bcm_density_enhanced, self.boxsize, "BCM") 
+            ds_dmb = create_yt_dataset(dmb_density_enhanced, self.boxsize, "DMB")
+        
+            # Create matplotlib figure FIRST
+            fig, axes = plt.subplots(2, 3, figsize=(18, 12))
+            
+            # Top row: Gravitational potential
+            mid = dmo_result['potential'].shape[0] // 2
+            
+            im1 = axes[0,0].imshow(dmo_result['potential'][mid,:,:], origin='lower', cmap='viridis')
+            axes[0,0].set_title('DMO Potential')
+            plt.colorbar(im1, ax=axes[0,0])
+            
+            im2 = axes[0,1].imshow(bcm_result['potential'][mid,:,:], origin='lower', cmap='viridis')
+            axes[0,1].set_title('BCM Potential') 
+            plt.colorbar(im2, ax=axes[0,1])
+            
+            im3 = axes[0,2].imshow(dmb_result['potential'][mid,:,:], origin='lower', cmap='viridis')
+            axes[0,2].set_title('DMB Potential')
+            plt.colorbar(im3, ax=axes[0,2])
+            
+            # Bottom row: Use YT but extract data manually instead of using YT's plotting
+            datasets = [ds_dmo, ds_bcm, ds_dmb]
+            titles = ['DMO Cosmic Web', 'BCM Cosmic Web', 'DMB Cosmic Web']
+            
+            for i, (ds, title) in enumerate(zip(datasets, titles)):
+                # Create YT projection but don't plot it
+                proj = yt.ProjectionPlot(ds, 'z', ('gas', 'density'), 
+                                    width=(self.boxsize, 'Mpc'),
+                                    center='c')
+                
+                # Set colormap optimized for low-density visibility
+                proj.set_cmap(('gas', 'density'), 'inferno')  # Better for low values
+                
+                # Calculate adaptive z-limits based on data percentiles
+                frb_temp = proj.data_source.to_frb((self.boxsize, 'Mpc'), 128)
+                density_proj_temp = np.array(frb_temp[('gas', 'density')])
+                
+                # Use percentiles to set limits that enhance low-density regions
+                vmin = np.percentile(density_proj_temp[density_proj_temp > 0], 5)   # 5th percentile
+                vmax = np.percentile(density_proj_temp, 95)  # 95th percentile
+                
+                # Apply asinh scaling for better low-value visibility
+                proj.set_zlim(('gas', 'density'), vmin, vmax)
+                
+                # Extract the data from YT projection with higher resolution
+                frb = proj.data_source.to_frb((self.boxsize, 'Mpc'), 800)  # Higher resolution
+                density_proj = np.array(frb[('gas', 'density')])
+                
+                # Apply additional enhancement for matplotlib display
+                # Use asinh scaling which is excellent for astronomical data
+                asinh_data = np.arcsinh(density_proj / vmin) / np.arcsinh(vmax / vmin)
+                
+                # Plot on our matplotlib axes with enhanced visualization
+                im = axes[1, i].imshow(asinh_data, origin='lower', cmap='inferno',
+                                    extent=[-self.boxsize/2, self.boxsize/2, 
+                                            -self.boxsize/2, self.boxsize/2])
+                axes[1, i].set_title(f'{title} (Enhanced Low-Density)')
+                axes[1, i].set_xlabel('X [Mpc/h]')
+                axes[1, i].set_ylabel('Y [Mpc/h]')
+                
+                # Add contours to highlight low-density structure
+                contour_levels = np.linspace(asinh_data.min(), asinh_data.max(), 8)
+                axes[1, i].contour(asinh_data, levels=contour_levels, colors='white', 
+                                alpha=0.3, linewidths=0.4, 
+                                extent=[-self.boxsize/2, self.boxsize/2, 
+                                        -self.boxsize/2, self.boxsize/2])
+                
+                plt.colorbar(im, ax=axes[1, i], label='Enhanced Density (asinh scaled)')
+            
+            plt.tight_layout()
+            
+            if output_file:
+                plt.savefig(output_file, dpi=300, bbox_inches='tight')
+                print(f"YT cosmic web comparison saved to: {output_file}")
+            
+            plt.show()
+            
+        except Exception as e:
+            print(f"YT visualization failed: {e}")
+            print("Using fallback visualization...")
+            self._plot_potential_comparison_fallback(dmo_result, bcm_result, dmb_result, output_file)
+    
+    def _plot_potential_comparison_fallback(self, dmo_result, bcm_result, dmb_result, output_file=None):
+        """Improved fallback visualization without YT."""
+        import matplotlib.pyplot as plt
+        from scipy.ndimage import gaussian_filter
+        
+        fig, axes = plt.subplots(2, 3, figsize=(18, 12))
+        
+        # Top row: Potential slices
+        mid = dmo_result['potential'].shape[0] // 2
+        
+        im1 = axes[0,0].imshow(dmo_result['potential'][mid,:,:], origin='lower', cmap='viridis')
+        axes[0,0].set_title('DMO Potential')
+        plt.colorbar(im1, ax=axes[0,0])
+        
+        im2 = axes[0,1].imshow(bcm_result['potential'][mid,:,:], origin='lower', cmap='viridis')
+        axes[0,1].set_title('BCM Potential')
+        plt.colorbar(im2, ax=axes[0,1])
+        
+        im3 = axes[0,2].imshow(dmb_result['potential'][mid,:,:], origin='lower', cmap='viridis')
+        axes[0,2].set_title('DMB Potential')
+        plt.colorbar(im3, ax=axes[0,2])
+        
+        # Bottom row: Improved cosmic web visualization
+        def plot_cosmic_web_improved(density_data, ax, title):
+            """Create better cosmic web visualization."""
+            # Sum projection along z-axis (column density)
+            column_density = np.sum(density_data, axis=0)
+            
+            # Apply logarithmic scaling
+            log_column = np.log10(column_density + column_density.max() * 1e-6)
+            
+            # Apply Gaussian smoothing to enhance structure
+            smoothed = gaussian_filter(log_column, sigma=1.5)
+            
+            # Enhanced contrast
+            vmin = np.percentile(smoothed, 10)
+            vmax = np.percentile(smoothed, 99.5)
+            
+            # Use 'hot' colormap for classic astronomy look
+            im = ax.imshow(smoothed, origin='lower', cmap='hot', vmin=vmin, vmax=vmax)
+            ax.set_title(f'{title} (Log Column Density)')
+            
+            # Add contours to highlight structure
+            levels = np.linspace(vmin, vmax, 8)
+            ax.contour(smoothed, levels=levels, colors='cyan', alpha=0.3, linewidths=0.5)
+            
+            return im
+        
+        # Plot cosmic web for each dataset
+        datasets = [(dmo_result['density'], 'DMO'), 
+                    (bcm_result['density'], 'BCM'),
+                    (dmb_result['density'], 'DMB')]
+        
+        for i, (density, title) in enumerate(datasets):
+            im = plot_cosmic_web_improved(density, axes[1, i], title)
+            plt.colorbar(im, ax=axes[1, i], label='Log₁₀(Column Density)')
+            
+            # Add scale information
+            grid_size = density.shape[0]
+            axes[1, i].set_xlabel(f'Grid X (Box: {self.boxsize:.1f} Mpc/h)')
+            axes[1, i].set_ylabel(f'Grid Y (Box: {self.boxsize:.1f} Mpc/h)')
+        
+        plt.tight_layout()
+        
+        if output_file:
+            plt.savefig(output_file, dpi=300, bbox_inches='tight')
+            print(f"Cosmic web comparison saved to: {output_file}")
+        
+        plt.show()
+    
+    def _plot_potential_comparison_old(self, dmo_result, bcm_result, dmb_result, output_file=None):
+        """Plot comparison of gravitational potentials and density distributions."""
+        from matplotlib.colors import LogNorm
+        
+        fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+        
+        # Central slices through the grids
+        mid = dmo_result['potential'].shape[0] // 2
+        
+        # Top row: Potential slices
+        im1 = axes[0,0].imshow(dmo_result['potential'][mid,:,:], origin='lower', cmap='viridis')
+        axes[0,0].set_title('DMO Potential')
+        plt.colorbar(im1, ax=axes[0,0])
+        
+        im2 = axes[0,1].imshow(bcm_result['potential'][mid,:,:], origin='lower', cmap='viridis')
+        axes[0,1].set_title('BCM Potential')
+        plt.colorbar(im2, ax=axes[0,1])
+        
+        im3 = axes[0,2].imshow(dmb_result['potential'][mid,:,:], origin='lower', cmap='viridis')
+        axes[0,2].set_title('DMB Potential')
+        plt.colorbar(im3, ax=axes[0,2])
+        
+        # Bottom row: Cosmic web filament structure (overdensity field)
+        def plot_cosmic_web(overdensity_data, ax, title):
+            """Plot cosmic web structure using 3D projection."""
+            # Project the 3D volume along the z-axis (sum all slices)
+            projected_density = np.sum(overdensity_data, axis=0)  # Sum along z-axis
+            
+            # Apply smoothing to enhance filament visibility
+            from scipy.ndimage import gaussian_filter
+            projected_smooth = gaussian_filter(projected_density, sigma=1.0)
+            
+            # Create filament-enhancing visualization
+            vmin = np.percentile(projected_smooth, 5)
+            vmax = np.percentile(projected_smooth, 95)
+            vabsmax = max(abs(vmin), abs(vmax))
+            
+            # Use RdBu_r colormap for classic cosmology visualization
+            im = ax.imshow(projected_smooth, origin='lower', cmap='RdBu_r', 
+                        vmin=-vabsmax, vmax=vabsmax)
+            ax.set_title(f'{title} Cosmic Web (3D Projected)')
+            
+            # Add contour lines to emphasize filament structure
+            contour_levels = [0.5, 1.0, 2.0, 5.0] * np.std(projected_smooth)
+            ax.contour(projected_smooth, levels=contour_levels, colors='black', 
+                    linewidths=0.5, alpha=0.6)
+            
+            return im
+        
+        # Alternative: Show density with filament-optimized colormap
+        def plot_filament_density(density_data, ax, title):
+            """Plot density field optimized for filament visualization."""
+            # Log-transform density for better dynamic range
+            log_density = np.log10(density_data + 1e-10)  # Add small value to avoid log(0)
+            
+            # Use 'hot' or 'afmhot' colormap for classic filament appearance
+            im = ax.imshow(log_density, origin='lower', cmap='afmhot')
+            ax.set_title(f'{title} Filaments (Log Density)')
+            
+            return im
+        
+        # Choose visualization method based on data quality
+        try:
+            # Method 1: Use overdensity for cosmic web structure
+            im4 = plot_cosmic_web(dmo_result['overdensity'][mid,:,:], axes[1,0], 'DMO')
+            plt.colorbar(im4, ax=axes[1,0], label='δ (overdensity)')
+            
+            im5 = plot_cosmic_web(bcm_result['overdensity'][mid,:,:], axes[1,1], 'BCM')
+            plt.colorbar(im5, ax=axes[1,1], label='δ (overdensity)')
+            
+            im6 = plot_cosmic_web(dmb_result['overdensity'][mid,:,:], axes[1,2], 'DMB')
+            plt.colorbar(im6, ax=axes[1,2], label='δ (overdensity)')
+            
+        except:
+            # Fallback: Use density-based filament visualization
+            print("Using density-based filament visualization")
+            
+            im4 = plot_filament_density(dmo_result['density'][mid,:,:], axes[1,0], 'DMO')
+            plt.colorbar(im4, ax=axes[1,0], label='Log₁₀(ρ)')
+            
+            im5 = plot_filament_density(bcm_result['density'][mid,:,:], axes[1,1], 'BCM')
+            plt.colorbar(im5, ax=axes[1,1], label='Log₁₀(ρ)')
+            
+            im6 = plot_filament_density(dmb_result['density'][mid,:,:], axes[1,2], 'DMB')
+            plt.colorbar(im6, ax=axes[1,2], label='Log₁₀(ρ)')
+        
+        # Add grid lines and axis labels for better readability
+        for ax_row in axes:
+            for ax in ax_row:
+                ax.set_xlabel('Grid X')
+                ax.set_ylabel('Grid Y')
+                # Optional: Add physical scale if known
+                # ax.set_xlabel(f'X [Mpc/h] (Box: {self.boxsize:.1f})')
+        
+        plt.tight_layout()
+        
+        if output_file:
+            plt.savefig(output_file, dpi=300, bbox_inches='tight')
+            print(f"Potential and density comparison saved to: {output_file}")
+        
+        plt.show()
+    
+    def _plot_potential_comparison(self, dmo_result, bcm_result, dmb_result, output_file=None):
+        """Plot comparison with YT for better cosmic web visualization."""
+        try:
+            self._plot_potential_comparison_yt(dmo_result, bcm_result, dmb_result, output_file)
+        except:
+            self._plot_potential_comparison_fallback(dmo_result, bcm_result, dmb_result, output_file)
     
     # Batch methods for mass and radius calculations
     def _batch_load_particles(self, halo_indices):
@@ -1826,7 +2557,11 @@ class CAMELSReader:
             M200 = self.halo['m200'][halo_idx]
             r200 = self.halo['r200'][halo_idx]
             c = ut.calc_concentration(M200, self.z)
-            # ✅ OPTIMIZATION: Calculate parameters without full BCM calculation
+            
+            # Calculate new fraction parameters first
+            fractions_new = af.new_fractions(M200)
+            
+            # store all parameters in a dictionary
             bcm_params[halo_idx] = {
                 'M200': M200,
                 'r200': r200,
@@ -1839,7 +2574,10 @@ class CAMELSReader:
                 'f_rdm': af.f_rdm(self.fbar),
                 'f_bgas': af.f_bgas(M200, self.fbar),
                 'f_cgal': af.f_cgal(M200),
-                'f_egas': None  # Will calculate after others
+                'f_egas': None,  # Will calculate after others
+                'f_star': fractions_new[0],
+                'f_cga': fractions_new[1],
+                'f_sga': fractions_new[2]
             }
             
             # Calculate f_egas (depends on other fractions)
@@ -1870,14 +2608,15 @@ class CAMELSReader:
         
         for halo_idx, results in batch_results.items():
             # Displacement profiles
-            for i, (r, disp) in enumerate(zip(results['r_vals'], results['displacement'])):
-                displacement_data.append([halo_idx, i, r, disp])
+            for i, (r, disp, disp_new) in enumerate(zip(results['r_vals'], results['displacement'],results['displacement_new'])):
+                displacement_data.append([halo_idx, i, r, disp, disp_new])
             
             # BCM parameters
             bcm_data.append([
                 halo_idx, results['M200'], results['r200'], results['c'],
                 results['fbar'], results['f_rdm'], results['f_bgas'], 
-                results['f_cgal'], results['f_egas']
+                results['f_cgal'], results['f_egas'], results['f_star'],
+                results['f_cga'], results['f_sga']
             ])
             
             # Summary data
@@ -1889,14 +2628,14 @@ class CAMELSReader:
         # Write all data at once (much faster than individual writes)
         if displacement_data:
             df = pd.DataFrame(displacement_data, 
-                            columns=['halo_id', 'r_index', 'r_val', 'displacement'])
+                            columns=['halo_id', 'r_index', 'r_val', 'displacement', 'displacement_new'])
             df.to_csv(os.path.join(output_dir, 'batch_displacement.csv'), 
                     mode='a', header=False, index=False)
         
         if bcm_data:
             df = pd.DataFrame(bcm_data, 
                             columns=['halo_id', 'M200', 'r200', 'c', 'fbar',
-                                    'f_rdm', 'f_bgas', 'f_cgal', 'f_egas'])
+                                    'f_rdm', 'f_bgas', 'f_cgal', 'f_egas','f_star', 'f_cga', 'f_sga'])
             df.to_csv(os.path.join(output_dir, 'batch_bcm_parameters.csv'),
                     mode='a', header=False, index=False)
         
@@ -1990,6 +2729,9 @@ class CAMELSReader:
                         self.f_bgas = bcm_params['f_bgas']
                         self.f_cgal = bcm_params['f_cgal']
                         self.f_egas = bcm_params['f_egas']
+                        self.f_star = bcm_params['f_star'] 
+                        self.f_cga = bcm_params['f_cga']
+                        self.f_sga = bcm_params['f_sga']
                         
                         # Calculate BCM (this is still the slow part, but unavoidable)
                         self.calculate(n_points=n_points)  # Reduced resolution
@@ -1998,6 +2740,7 @@ class CAMELSReader:
                         batch_results[halo_idx] = {
                             'r_vals': self.r_vals.copy(),
                             'displacement': self.components['disp'].copy(),
+                            'displacement_new': self.components['disp_new'].copy(),
                             'particle_count': len(particles['pos']),
                             **bcm_params
                         }
@@ -2025,11 +2768,403 @@ class CAMELSReader:
         import pandas as pd
         
         # Create empty DataFrames with headers and save
-        pd.DataFrame(columns=['halo_id', 'r_index', 'r_val', 'displacement']).to_csv(
+        pd.DataFrame(columns=['halo_id', 'r_index', 'r_val', 'displacement', 'displacement_new']).to_csv(
             os.path.join(output_dir, 'batch_displacement.csv'), index=False)
         
         pd.DataFrame(columns=['halo_id', 'M200', 'r200', 'c', 'fbar',
                              'f_rdm', 'f_bgas', 'f_cgal', 'f_egas']).to_csv(
             os.path.join(output_dir, 'batch_bcm_parameters.csv'), index=False) 
                              
-
+    # visualization methods
+    def visualize_potential_3d(self, method='interactive', density_percentile = 15, output_file=None, grid_size=128):
+        """
+        Create 3D visualizations of gravitational potential.
+        
+        Parameters
+        ----------
+        method : str, default 'interactive'
+            Visualization method: 'interactive', 'volume', 'slices', or 'pyvista'
+        output_file : str, optional
+            Output file path
+        grid_size : int, default 128
+            Grid resolution
+        """
+        
+        def enhance_potential_display(potential_grid):
+            """Enhance potential for better visualization."""
+            # Shift to make all values positive for colormap
+            shifted = potential_grid - potential_grid.min()
+            
+            # Apply power scaling to enhance contrast
+            power = 0.5  # Adjust between 0.1-1.0 for different contrast
+            normalized = (shifted / shifted.max()) ** power
+            
+            return normalized * (potential_grid.max() - potential_grid.min()) + potential_grid.min()
+                
+        # Calculate potential for DMO case
+        print("Loading DMO particle positions...")
+        all_positions = []
+        for halo_id in self.halo['id']:
+            particles = self.get_halo_particles(halo_id)
+            if particles is not None:
+                all_positions.append(particles['pos'])
+        
+        if not all_positions:
+            print("No particles found")
+            return
+        
+        dmo_positions = np.vstack(all_positions)
+        dmo_result = self.calculate_gravitational_potential_cic(dmo_positions, grid_size)
+        
+        dmo_result['potential'] = enhance_potential_display(dmo_result['potential'])
+        
+        # Choose visualization method
+        if method == 'interactive':
+            self.plot_potential_3d_interactive(dmo_result, density_percentile, output_file)
+        elif method == 'volume':
+            self.plot_potential_3d_volume(dmo_result, output_file)
+        elif method == 'slices':
+            self.plot_potential_3d_slices(dmo_result, output_file)
+        elif method == 'pyvista':
+            self.plot_potential_3d_pyvista(dmo_result, density_percentile, output_file)
+        else:
+            print(f"Unknown method: {method}")
+            print("Available methods: 'interactive', 'volume', 'slices', 'pyvista'")
+    
+    def plot_potential_3d_interactive(self, potential_result, density_percentile = 15, output_file=None):
+        """Create interactive 3D visualization of gravitational potential."""
+        try:
+            import plotly.graph_objects as go
+            from skimage import measure
+            
+            potential_grid = potential_result['potential']
+            density_grid = potential_result['density']
+            
+            # FILTER LOW DENSITY REGIONS
+            # Method 1: Percentile-based filtering
+            density_threshold = np.percentile(density_grid[density_grid > 0], density_percentile)
+            
+            # Create mask for significant structures
+            structure_mask = density_grid > density_threshold
+            
+            # Apply 3D morphological operations to clean up the mask
+            from scipy.ndimage import binary_opening, binary_closing
+            
+            # Remove small isolated regions
+            cleaned_mask = binary_opening(structure_mask, iterations=1)
+            # Fill small holes
+            cleaned_mask = binary_closing(cleaned_mask, iterations=1)
+            
+            # Apply mask to data
+            filtered_potential = potential_grid.copy()
+            filtered_density = density_grid.copy()
+            
+            filtered_potential[~cleaned_mask] = np.nan
+            filtered_density[~cleaned_mask] = 0
+            
+            # Create isosurfaces at different potential levels
+            fig = go.Figure()
+            
+            # Define potential levels for isosurfaces
+            potential_levels = np.percentile(filtered_density[filtered_density > density_threshold], 
+                                     [25, 50, 75, 95])
+            colors = ['blue', 'cyan', 'orange', 'red']
+            
+            # Create coordinate grids
+            x, y, z = np.mgrid[0:self.boxsize:potential_grid.shape[0]*1j,
+                                0:self.boxsize:potential_grid.shape[1]*1j,
+                                0:self.boxsize:potential_grid.shape[2]*1j]
+            
+            for i, (level, color) in enumerate(zip(potential_levels, colors)):
+                # Extract isosurface using marching cubes
+                try:
+                    # Extract isosurface using marching cubes on density
+                    verts, faces, _, _ = measure.marching_cubes(filtered_density, level)
+                    
+                    if len(verts) > 0:
+                        # Scale vertices to physical coordinates
+                        verts = verts * self.boxsize / potential_grid.shape[0]
+                        
+                        # Get potential values at surface vertices for coloring
+                        vert_indices = (verts / self.boxsize * potential_grid.shape[0]).astype(int)
+                        vert_indices = np.clip(vert_indices, 0, potential_grid.shape[0]-1)
+                        
+                        surface_potentials = filtered_potential[
+                            vert_indices[:, 0], vert_indices[:, 1], vert_indices[:, 2]
+                        ]
+                        
+                        fig.add_trace(go.Mesh3d(
+                            x=verts[:, 0],
+                            y=verts[:, 1], 
+                            z=verts[:, 2],
+                            i=faces[:, 0],
+                            j=faces[:, 1],
+                            k=faces[:, 2],
+                            intensity=surface_potentials,
+                            colorscale='Viridis',
+                            opacity=0.6,
+                            name=f'Density {level:.2e}',
+                            showscale=(i == 0),
+                            colorbar=dict(title="Potential") if i == 0 else None
+                        ))
+                except Exception as e:
+                    print(f"Skipping isosurface at level {level}: {e}")
+            
+            fig.update_layout(
+                title="3D Gravitational (Low-Density Filtered)",
+                scene=dict(
+                    xaxis_title='X [Mpc/h]',
+                    yaxis_title='Y [Mpc/h]',
+                    zaxis_title='Z [Mpc/h]',
+                    camera=dict(eye=dict(x=1.5, y=1.5, z=1.5))
+                ),
+                width=1000,
+                height=800
+            )
+            
+            if output_file:
+                fig.write_html(output_file.replace('.png', '.html'))
+                print(f"Interactive 3D plot saved to: {output_file.replace('.png', '.html')}")
+            
+            fig.show()
+            
+        except ImportError:
+            print("Plotly not available. Install with: pip install plotly scikit-image")        
+        
+    def plot_potential_3d_volume(self, potential_result, output_file=None):
+        """Create volume rendering of gravitational potential."""
+        try:
+            from mayavi import mlab
+            
+            potential_grid = potential_result['potential']
+            
+            # Normalize potential for better visualization
+            pot_norm = (potential_grid - potential_grid.min()) / (potential_grid.max() - potential_grid.min())
+            
+            # Create volume rendering
+            mlab.figure(size=(800, 800), bgcolor=(0, 0, 0))
+            
+            # Volume rendering
+            vol = mlab.pipeline.volume(mlab.pipeline.scalar_field(pot_norm))
+            vol.module_manager.scalar_lut_manager.lut.table = cm.viridis(np.linspace(0, 1, 256)) * 255
+            
+            # Add contour surfaces
+            contours = mlab.contour3d(pot_norm, contours=8, transparent=True, opacity=0.4)
+            
+            # Add axes and labels
+            mlab.axes(xlabel='X [Mpc/h]', ylabel='Y [Mpc/h]', zlabel='Z [Mpc/h]')
+            mlab.colorbar(title='Normalized Potential')
+            mlab.title('3D Gravitational Potential Volume')
+            
+            if output_file:
+                mlab.savefig(output_file.replace('.png', '_3d.png'))
+                print(f"3D volume plot saved to: {output_file.replace('.png', '_3d.png')}")
+            
+            mlab.show()
+            
+        except ImportError:
+            print("Mayavi not available. Install with: pip install mayavi")
+    
+    def plot_potential_3d_slices(self, potential_result, output_file=None):
+        """Create 3D visualization with multiple slices and projections."""
+        import matplotlib.pyplot as plt
+        from mpl_toolkits.mplot3d import Axes3D
+        from matplotlib.colors import LinearSegmentedColormap
+        
+        potential_grid = potential_result['potential']
+        fig = plt.figure(figsize=(15, 12))
+        
+        # Create 2x2 subplot arrangement
+        # Top left: 3D slices
+        ax1 = fig.add_subplot(221, projection='3d')
+        
+        # Sample slices through the volume
+        nx, ny, nz = potential_grid.shape
+        slice_indices = [nx//4, nx//2, 3*nx//4]
+        
+        x = np.linspace(0, self.boxsize, nx)
+        y = np.linspace(0, self.boxsize, ny)
+        z = np.linspace(0, self.boxsize, nz)
+        
+        X, Y = np.meshgrid(x, y)
+        
+        # Plot slices at different z-levels
+        colors = ['blue', 'green', 'red']
+        alphas = [0.4, 0.6, 0.4]
+        
+        for i, (slice_idx, color, alpha) in enumerate(zip(slice_indices, colors, alphas)):
+            Z_slice = np.full_like(X, z[slice_idx])
+            pot_slice = potential_grid[slice_idx, :, :]
+            
+            ax1.plot_surface(X, Y, Z_slice, 
+                            facecolors=plt.cm.viridis(pot_slice/pot_slice.max()),
+                            alpha=alpha, shade=False)
+        
+        ax1.set_xlabel('X [Mpc/h]')
+        ax1.set_ylabel('Y [Mpc/h]')
+        ax1.set_zlabel('Z [Mpc/h]')
+        ax1.set_title('3D Potential Slices')
+        
+        # Top right: Maximum projection
+        ax2 = fig.add_subplot(222)
+        max_proj = np.max(potential_grid, axis=0)
+        im2 = ax2.imshow(max_proj, origin='lower', cmap='viridis', 
+                         extent=[0, self.boxsize, 0, self.boxsize])
+        ax2.set_title('Maximum Projection (Z-axis)')
+        ax2.set_xlabel('X [Mpc/h]')
+        ax2.set_ylabel('Y [Mpc/h]')
+        plt.colorbar(im2, ax=ax2)
+        
+        # Bottom left: Central slice with contours
+        ax3 = fig.add_subplot(223)
+        central_slice = potential_grid[nx//2, :, :]
+        im3 = ax3.imshow(central_slice, origin='lower', cmap='viridis',
+                         extent=[0, self.boxsize, 0, self.boxsize])
+        
+        # Add contour lines
+        Y_2d, Z_2d = np.meshgrid(y, z)
+        contours = ax3.contour(Y_2d, Z_2d, central_slice, levels=10, 
+                              colors='white', alpha=0.6, linewidths=0.8)
+        ax3.clabel(contours, inline=True, fontsize=8)
+        
+        ax3.set_title('Central Slice with Contours')
+        ax3.set_xlabel('Y [Mpc/h]')
+        ax3.set_ylabel('Z [Mpc/h]')
+        plt.colorbar(im3, ax=ax3)
+        
+        # Bottom right: 1D profile through center
+        ax4 = fig.add_subplot(224)
+        
+        # Extract 1D profiles through center
+        center_idx = nx // 2
+        profile_x = potential_grid[center_idx, center_idx, :]
+        profile_y = potential_grid[center_idx, :, center_idx]
+        profile_z = potential_grid[:, center_idx, center_idx]
+        
+        ax4.plot(z, profile_x, 'b-', label='X-direction', linewidth=2)
+        ax4.plot(y, profile_y, 'g-', label='Y-direction', linewidth=2)
+        ax4.plot(x, profile_z, 'r-', label='Z-direction', linewidth=2)
+        
+        ax4.set_xlabel('Distance [Mpc/h]')
+        ax4.set_ylabel('Potential')
+        ax4.set_title('1D Profiles Through Center')
+        ax4.legend()
+        ax4.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        
+        if output_file:
+            plt.savefig(output_file.replace('.png', '_3d_analysis.png'), dpi=300, bbox_inches='tight')
+            print(f"3D analysis plot saved to: {output_file.replace('.png', '_3d_analysis.png')}")
+        
+        plt.show()
+    
+    def plot_potential_3d_pyvista(self, potential_result, density_percentile=15, output_file=None):
+        """Create advanced 3D visualization using PyVista."""
+        try:
+            import pyvista as pv
+            
+            potential_grid = potential_result['potential']
+            density_grid = potential_result['density']
+            
+            # Ensure density_percentile is numeric
+            density_percentile = float(density_percentile)
+            
+            # Create PyVista structured grid
+            grid = pv.ImageData(dimensions=potential_grid.shape)
+            grid.spacing = (self.boxsize/potential_grid.shape[0],) * 3
+            grid.point_data['potential'] = potential_grid.flatten(order='F')
+            grid.point_data['density'] = density_grid.flatten(order='F')
+            
+            # Calculate density threshold
+            valid_density = density_grid[density_grid > 0]
+            if len(valid_density) == 0:
+                print("Warning: No positive density values found")
+                density_threshold = density_grid.min()
+            else:
+                density_threshold = np.percentile(valid_density, density_percentile)
+            
+            print(f"Using density threshold: {density_threshold:.2e} (percentile: {density_percentile})")
+            
+            # Create plotter
+            plotter = pv.Plotter(window_size=(1000, 800))
+            
+            # Method 1: Add volume rendering with opacity
+            opacity = [0.0, 0.0, 0.1, 0.3, 0.7, 1.0]
+            try:
+                plotter.add_volume(grid, scalars='density', opacity=opacity, cmap='hot', 
+                                scalar_bar_args={'title': 'Density'})
+            except Exception as e:
+                print(f"Volume rendering failed: {e}")
+            
+            # Method 2: FIXED - Handle MultiBlock slices properly
+            try:
+                # Create orthogonal slices
+                slices = grid.slice_orthogonal(x=self.boxsize/2, y=self.boxsize/2, z=self.boxsize/2)
+                
+                # FIXED: Handle MultiBlock - extract and threshold each block
+                if hasattr(slices, 'n_blocks') and slices.n_blocks > 0:
+                    # Process each slice in the MultiBlock
+                    for i in range(slices.n_blocks):
+                        slice_block = slices[i]
+                        if slice_block.n_points > 0:
+                            # Apply threshold to individual slice
+                            thresholded_slice = slice_block.threshold(density_threshold, scalars='density')
+                            if thresholded_slice.n_points > 0:
+                                plotter.add_mesh(thresholded_slice, opacity=0.8, cmap='viridis', 
+                                            scalars='potential', name=f'Slice_{i}')
+                else:
+                    # Fallback: treat as single mesh
+                    if slices.n_points > 0:
+                        thresholded_slices = slices.threshold(density_threshold, scalars='density')
+                        if thresholded_slices.n_points > 0:
+                            plotter.add_mesh(thresholded_slices, opacity=0.8, cmap='viridis', 
+                                        scalars='potential')
+                            
+            except Exception as e:
+                print(f"Slice rendering failed: {e}")
+            
+            # Method 3: Add isosurfaces at meaningful density levels
+            try:
+                high_density_data = density_grid[density_grid > density_threshold]
+                if len(high_density_data) > 0:
+                    density_levels = np.percentile(high_density_data, [30, 60, 90])
+                    colors = ['blue', 'green', 'red']
+                    
+                    for i, (level, color) in enumerate(zip(density_levels, colors)):
+                        iso = grid.contour([level], scalars='density')
+                        if iso.n_points > 0:
+                            plotter.add_mesh(iso, opacity=0.4, color=color, 
+                                        name=f'Density {level:.2e}')
+            except Exception as e:
+                print(f"Isosurface rendering failed: {e}")
+            
+            # Configure camera and scene
+            try:
+                plotter.camera_position = 'iso'
+            except:
+                # Fallback camera positions
+                try:
+                    plotter.camera_position = 'xy'
+                except:
+                    pass
+            
+            plotter.add_axes()
+            plotter.add_text('3D Gravitational Potential (Filtered)', font_size=16)
+            
+            # Show and save
+            if output_file:
+                plotter.show(screenshot=output_file.replace('.png', '_pyvista.png'))
+                print(f"PyVista 3D plot saved to: {output_file.replace('.png', '_pyvista.png')}")
+            else:
+                plotter.show()
+                
+        except ImportError:
+            print("PyVista not available. Install with: pip install pyvista")
+        except Exception as e:
+            print(f"PyVista visualization failed: {e}")
+            print("Falling back to interactive visualization...")
+            self.plot_potential_3d_interactive(potential_result, density_percentile, output_file)
+    
+    
+    

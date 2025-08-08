@@ -13,6 +13,10 @@ Baryonic_Correction/tests/test_abundance_fractions.py
 Baryonic_Correction/tests/test_density_profiles.py
 Baryonic_Correction/tests/test_simulation.py
 Baryonic_Correction/tests/test_utils.py
+MAS_library/MAS_gadget.py
+MAS_library/__init__.py
+Pk_library/Pk_snapshot.py
+Pk_library/__init__.py
 baryonic_correction.egg-info/PKG-INFO
 baryonic_correction.egg-info/SOURCES.txt
 baryonic_correction.egg-info/dependency_links.txt
